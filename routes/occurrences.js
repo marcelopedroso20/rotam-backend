@@ -23,25 +23,6 @@ router.get("/", async (req, res) => {
 /**
  * POST /occurrences
  * Cria uma ocorrência
- * Campos mínimos sugeridos no body (JSON):
- * {
- *   "reporter_id": 123,
- *   "reporter_name": "Sd. Silva",
- *   "comunicante_nome": "João",
- *   "comunicante_rg": "1234567",
- *   "comunicante_cpf": "000.111.222-33",
- *   "comunicante_ender": "Rua X, 123",        // (use esses nomes como estão)
- *   "comunicante_telefor": "65 9 9999-0000",  // pois sua tabela foi criada assim
- *   "occurred_at": "2025-09-18",
- *   "occurred_location": "Bairro Centro",
- *   "occurrence_type": "Furto",
- *   "description": "Relato do fato...",
- *   "involved": [{"nome":"Maria", "papel":"vítima"}],
- *   "measures_taken": "Orientado a procurar a Civil",
- *   "signature": "Cb. Pereira",
- *   "attachments": [],
- *   "status": "aberta"
- * }
  */
 router.post("/", async (req, res) => {
   try {
@@ -56,8 +37,8 @@ router.post("/", async (req, res) => {
       comunicante_nome: body.comunicante_nome ?? null,
       comunicante_rg: body.comunicante_rg ?? null,
       comunicante_cpf: body.comunicante_cpf ?? null,
-      comunicante_ender: body.comunicante_ender ?? null,       // use exatamente esses nomes
-      comunicante_telefor: body.comunicante_telefor ?? null,   // iguais aos da sua tabela
+      comunicante_endereco: body.comunicante_endereco ?? null,   // corrigido
+      comunicante_telefone: body.comunicante_telefone ?? null,   // corrigido
       occurred_at: body.occurred_at ?? today,
       occurred_location: body.occurred_location ?? "",
       occurrence_type: body.occurrence_type ?? "",
@@ -75,7 +56,7 @@ router.post("/", async (req, res) => {
       INSERT INTO occurrences
       (reporter_id, reporter_name,
        comunicante_nome, comunicante_rg, comunicante_cpf,
-       comunicante_ender, comunicante_telefor,
+       comunicante_endereco, comunicante_telefone,
        occurred_at, occurred_location, occurrence_type,
        description, involved, measures_taken, signature,
        attachments, status, created_at, updated_at)
@@ -90,8 +71,8 @@ router.post("/", async (req, res) => {
       data.comunicante_nome,
       data.comunicante_rg,
       data.comunicante_cpf,
-      data.comunicante_ender,
-      data.comunicante_telefor,
+      data.comunicante_endereco,
+      data.comunicante_telefone,
       data.occurred_at,
       data.occurred_location,
       data.occurrence_type,
