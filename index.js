@@ -1,7 +1,8 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import pool from "./db.js"; // importa a conexão com o banco
+import pool from "./db.js";
+import occurrencesRouter from "./routes/occurrences.js";
 
 dotenv.config();
 
@@ -11,22 +12,25 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 
-// Rota de teste da API
+// rota de status
 app.get("/", (req, res) => {
   res.send("🚔 API ROTAM Backend funcionando!");
 });
 
-// Rota de teste do banco
+// rota de teste com o banco (você já usou ontem)
 app.get("/teste-banco", async (req, res) => {
   try {
-    const result = await pool.query("SELECT NOW()"); // pega a hora atual do banco
-    res.json({ message: "Banco conectado com sucesso!", hora: result.rows[0] });
-  } catch (err) {
-    console.error(err);
+    const r = await pool.query("SELECT NOW()");
+    res.json({ message: "Banco conectado com sucesso!", hora: { agora: r.rows[0].now } });
+  } catch (e) {
+    console.error(e);
     res.status(500).send("Erro ao conectar no banco");
   }
 });
 
-app.listen(PORT, () => {
+// 👉 aqui plugamos as rotas de ocorrências
+app.use("/occurrences", occurrencesRouter);
+
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
