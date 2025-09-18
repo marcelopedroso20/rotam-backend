@@ -6,7 +6,7 @@ const router = Router();
 
 /**
  * GET /occurrences
- * Lista até 100 ocorrências (mais recentes primeiro)
+ * Lista até 100 ocorrências
  */
 router.get("/", async (req, res) => {
   try {
@@ -22,13 +22,11 @@ router.get("/", async (req, res) => {
 
 /**
  * POST /occurrences
- * Cria uma ocorrência
+ * Cria uma nova ocorrência
  */
 router.post("/", async (req, res) => {
   try {
     const body = req.body || {};
-
-    // defaults seguros para não quebrar o INSERT
     const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
 
     const data = {
@@ -37,16 +35,16 @@ router.post("/", async (req, res) => {
       comunicante_nome: body.comunicante_nome ?? null,
       comunicante_rg: body.comunicante_rg ?? null,
       comunicante_cpf: body.comunicante_cpf ?? null,
-      comunicante_endereco: body.comunicante_endereco ?? null,   // corrigido
-      comunicante_telefone: body.comunicante_telefone ?? null,   // corrigido
+      comunicante_endereco: body.comunicante_endereco ?? null,
+      comunicante_telefone: body.comunicante_telefone ?? null,
       occurred_at: body.occurred_at ?? today,
       occurred_location: body.occurred_location ?? "",
       occurrence_type: body.occurrence_type ?? "",
       description: body.description ?? "",
-      involved: body.involved ?? [],           // vira JSON no banco
+      involved: body.involved ?? [],
       measures_taken: body.measures_taken ?? "",
       signature: body.signature ?? "",
-      attachments: body.attachments ?? [],     // vira JSON no banco
+      attachments: body.attachments ?? [],
       status: body.status ?? "aberta",
       created_at: today,
       updated_at: today,
