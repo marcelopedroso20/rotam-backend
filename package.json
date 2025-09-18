@@ -1,14 +1,22 @@
 {
   "name": "rotam-backend",
   "version": "1.0.0",
+  "description": "API Backend para gerenciamento de ocorrências (ROTAM).",
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "pg": "^8.11.1",
-    "dotenv": "^16.3.1"
-  }
+    "pg": "^8.11.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "author": "Marcelo Pedroso",
+  "license": "MIT"
 }
