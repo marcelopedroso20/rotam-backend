@@ -6,6 +6,7 @@ const router = Router();
 
 /**
  * GET /occurrences
+ * Lista até 100 ocorrências (mais recentes primeiro)
  */
 router.get("/", async (req, res) => {
   try {
@@ -14,17 +15,19 @@ router.get("/", async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Erro ao buscar ocorrências" });
   }
 });
 
 /**
  * POST /occurrences
+ * Cria uma ocorrência
  */
 router.post("/", async (req, res) => {
   try {
     const body = req.body || {};
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10); // 'YYYY-MM-DD'
 
     const data = {
       reporter_id: body.reporter_id ?? null,
@@ -32,8 +35,8 @@ router.post("/", async (req, res) => {
       comunicante_nome: body.comunicante_nome ?? null,
       comunicante_rg: body.comunicante_rg ?? null,
       comunicante_cpf: body.comunicante_cpf ?? null,
-      comunicante_ender: body.comunicante_ender ?? null,
-      comunicante_telefor: body.comunicante_telefor ?? null,
+      comunicante_endereco: body.comunicante_endereco ?? null,   // corrigido
+      comunicante_telefone: body.comunicante_telefone ?? null,   // corrigido
       occurred_at: body.occurred_at ?? today,
       occurred_location: body.occurred_location ?? "",
       occurrence_type: body.occurrence_type ?? "",
@@ -51,7 +54,7 @@ router.post("/", async (req, res) => {
       INSERT INTO occurrences
       (reporter_id, reporter_name,
        comunicante_nome, comunicante_rg, comunicante_cpf,
-       comunicante_ender, comunicante_telefor,
+       comunicante_endereco, comunicante_telefone,
        occurred_at, occurred_location, occurrence_type,
        description, involved, measures_taken, signature,
        attachments, status, created_at, updated_at)
@@ -66,8 +69,8 @@ router.post("/", async (req, res) => {
       data.comunicante_nome,
       data.comunicante_rg,
       data.comunicante_cpf,
-      data.comunicante_ender,
-      data.comunicante_telefor,
+      data.comunicante_endereco,
+      data.comunicante_telefone,
       data.occurred_at,
       data.occurred_location,
       data.occurrence_type,
@@ -84,28 +87,42 @@ router.post("/", async (req, res) => {
     const result = await pool.query(sql, params);
     res.status(201).json({ success: true, id: result.rows[0].id });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Erro ao criar ocorrência", detail: err.message });
   }
 });
 
 /**
  * PUT /occurrences/:id
- * Atualiza uma ocorrência existente
+ * Atualiza uma ocorrência pelo ID
  */
 router.put("/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const body = req.body || {};
-    const updated_at = new Date().toISOString().slice(0, 10);
+    const today = new Date().toISOString().slice(0, 10);
 
     const sql = `
-      UPDATE occurrences
-      SET reporter_id=$1, reporter_name=$2, comunicante_nome=$3, comunicante_rg=$4,
-          comunicante_cpf=$5, comunicante_ender=$6, comunicante_telefor=$7,
-          occurred_at=$8, occurred_location=$9, occurrence_type=$10,
-          description=$11, involved=$12, measures_taken=$13,
-          signature=$14, attachments=$15, status=$16, updated_at=$17
-      WHERE id=$18 RETURNING *
+      UPDATE occurrences SET
+        reporter_id = $1,
+        reporter_name = $2,
+        comunicante_nome = $3,
+        comunicante_rg = $4,
+        comunicante_cpf = $5,
+        comunicante_endereco = $6,
+        comunicante_telefone = $7,
+        occurred_at = $8,
+        occurred_location = $9,
+        occurrence_type = $10,
+        description = $11,
+        involved = $12,
+        measures_taken = $13,
+        signature = $14,
+        attachments = $15,
+        status = $16,
+        updated_at = $17
+      WHERE id = $18
+      RETURNING *
     `;
 
     const params = [
@@ -114,9 +131,9 @@ router.put("/:id", async (req, res) => {
       body.comunicante_nome ?? null,
       body.comunicante_rg ?? null,
       body.comunicante_cpf ?? null,
-      body.comunicante_ender ?? null,
-      body.comunicante_telefor ?? null,
-      body.occurred_at ?? null,
+      body.comunicante_endereco ?? null,
+      body.comunicante_telefone ?? null,
+      body.occurred_at ?? today,
       body.occurred_location ?? "",
       body.occurrence_type ?? "",
       body.description ?? "",
@@ -125,34 +142,41 @@ router.put("/:id", async (req, res) => {
       body.signature ?? "",
       JSON.stringify(body.attachments ?? []),
       body.status ?? "aberta",
-      updated_at,
+      today,
       id,
     ];
 
     const result = await pool.query(sql, params);
-    if (result.rows.length === 0) {
+
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Ocorrência não encontrada" });
     }
-    res.json({ success: true, occurrence: result.rows[0] });
+
+    res.json({ success: true, data: result.rows[0] });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Erro ao atualizar ocorrência", detail: err.message });
   }
 });
 
 /**
  * DELETE /occurrences/:id
- * Remove uma ocorrência pelo ID
+ * Exclui uma ocorrência pelo ID
  */
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const result = await pool.query("DELETE FROM occurrences WHERE id=$1 RETURNING id", [id]);
-    if (result.rows.length === 0) {
+
+    const result = await pool.query("DELETE FROM occurrences WHERE id = $1", [id]);
+
+    if (result.rowCount === 0) {
       return res.status(404).json({ error: "Ocorrência não encontrada" });
     }
-    res.json({ success: true, deletedId: result.rows[0].id });
+
+    res.json({ success: true, message: "Ocorrência excluída com sucesso" });
   } catch (err) {
-    res.status(500).json({ error: "Erro ao deletar ocorrência", detail: err.message });
+    console.error(err);
+    res.status(500).json({ error: "Erro ao excluir ocorrência", detail: err.message });
   }
 });
 
