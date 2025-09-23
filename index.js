@@ -1,106 +1,144 @@
-const API_URL = "https://rotam-backend-production.up.railway.app";
+// index.js
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken"; // <-- adicionado
+import pool from "./db.js";
+import occurrencesRouter from "./routes/occurrences.js";
 
-// Pegar token do localStorage
-const token = localStorage.getItem("token");
+dotenv.config();
 
-// =============== LISTAR OCORRÊNCIAS ===============
-async function loadOccurrences() {
+const app = express();
+const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || "segredo_rotam";
+
+// Middlewares
+app.use(express.json());
+app.use(
+  cors({
+    origin: "*", // pode restringir depois
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
+// =====================
+//  SETUP
+// =====================
+
+// 1) Cria tabela users
+app.get("/setup-users-table", async (req, res) => {
   try {
-    const res = await fetch(`${API_URL}/occurrences`, {
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    });
-    const data = await res.json();
-
-    const tbody = document.querySelector("#occurrencesTable tbody");
-    tbody.innerHTML = "";
-
-    data.forEach(o => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${o.id}</td>
-        <td>${o.reporter_name}</td>
-        <td>${o.comun_name}</td>
-        <td>${o.occurred_at ? o.occurred_at.substring(0, 10) : ""}</td>
-        <td>${o.location}</td>
-        <td>${o.type}</td>
-        <td>${o.status}</td>
-        <td>
-          <button onclick="deleteOccurrence(${o.id})" class="btn-red">Excluir</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  } catch (err) {
-    console.error("Erro ao carregar ocorrências", err);
-    alert("Erro ao carregar ocorrências. Faça login novamente.");
-    logout();
-  }
-}
-
-// =============== CADASTRAR NOVA OCORRÊNCIA ===============
-document.getElementById("occurrenceForm").addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const payload = {
-    reporter_id: document.getElementById("reporter_id").value,
-    reporter_name: document.getElementById("reporter_name").value,
-    comun_name: document.getElementById("comun_name").value,
-    comun_rg: document.getElementById("comun_rg").value,
-    comun_cpf: document.getElementById("comun_cpf").value,
-    comun_phone: document.getElementById("comun_phone").value,
-    address: document.getElementById("address").value,
-    occurred_at: document.getElementById("occurred_at").value,
-    location: document.getElementById("location").value,
-    type: document.getElementById("type").value,
-    status: document.getElementById("status").value,
-    description: document.getElementById("description").value,
-    involved: document.getElementById("involved").value
-  };
-
-  try {
-    const res = await fetch(`${API_URL}/occurrences`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) throw new Error("Erro ao cadastrar ocorrência");
-
-    alert("Ocorrência cadastrada com sucesso!");
-    document.getElementById("occurrenceForm").reset();
-    loadOccurrences();
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao cadastrar ocorrência");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    res.send("✅ Tabela 'users' criada/verificada com sucesso.");
+  } catch (e) {
+    console.error("Erro ao criar tabela users:", e);
+    res.status(500).send("Erro ao criar tabela users: " + e.message);
   }
 });
 
-// =============== DELETAR OCORRÊNCIA ===============
-async function deleteOccurrence(id) {
-  if (!confirm("Tem certeza que deseja excluir esta ocorrência?")) return;
+// 2) Cria usuário admin (adm/adm)
+app.get("/create-admin", async (req, res) => {
+  try {
+    const username = "adm";
+    const password = "adm";
+    const hash = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      `INSERT INTO users (username, password_hash, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (username) DO NOTHING
+       RETURNING id`,
+      [username, hash, "admin"]
+    );
+
+    if (result.rowCount === 0) {
+      return res.send("ℹ️ Usuário 'adm' já existe.");
+    }
+    res.send("✅ Usuário admin criado com sucesso (adm/adm).");
+  } catch (e) {
+    res.status(500).send("Erro ao criar usuário admin: " + e.message);
+  }
+});
+
+// =====================
+//  LOGIN
+// =====================
+app.post("/auth/login", async (req, res) => {
+  try {
+    const { username, password } = req.body || {};
+    if (!username || !password) {
+      return res.status(400).json({ error: "Informe usuário e senha." });
+    }
+
+    const { rows } = await pool.query(
+      "SELECT id, username, password_hash, role FROM users WHERE username = $1",
+      [username]
+    );
+    const user = rows[0];
+    if (!user) {
+      return res.status(401).json({ error: "Credenciais inválidas." });
+    }
+
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: "Credenciais inválidas." });
+    }
+
+    // Gera token JWT
+    const token = jwt.sign(
+      { id: user.id, username: user.username, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
+
+    res.json({
+      success: true,
+      token,
+      user: { id: user.id, username: user.username, role: user.role },
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Erro interno no login", detail: e.message });
+  }
+});
+
+// Middleware de autenticação (para proteger rotas)
+function authMiddleware(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  if (!authHeader) return res.status(401).json({ error: "Token ausente." });
+
+  const token = authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Token inválido." });
 
   try {
-    const res = await fetch(`${API_URL}/occurrences/${id}`, {
-      method: "DELETE",
-      headers: {
-        "Authorization": `Bearer ${token}`
-      }
-    });
-
-    if (!res.ok) throw new Error("Erro ao excluir ocorrência");
-
-    alert("Ocorrência excluída!");
-    loadOccurrences();
-  } catch (err) {
-    console.error(err);
-    alert("Erro ao excluir ocorrência");
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded; // anexar usuário
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: "Token expirado ou inválido." });
   }
 }
 
-// Carregar ocorrências ao abrir página
-loadOccurrences();
+// =====================
+//  ROTAS PROTEGIDAS
+// =====================
+app.use("/occurrences", authMiddleware, occurrencesRouter);
+
+// Rota principal
+app.get("/", (req, res) => {
+  res.send("🚔 API ROTAM Backend funcionando!");
+});
+
+// Start
+app.listen(PORT, () => {
+  console.log(`Servidor rodando na porta ${PORT}`);
+});
