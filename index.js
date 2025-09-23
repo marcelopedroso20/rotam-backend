@@ -1,92 +1,111 @@
-// index.js
+// index.js  (cole inteiro, substituindo o existente)
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import bcrypt from "bcryptjs";
-import pool from "./db.js";                  // conexão com Postgres
+import pool from "./db.js";               // sua conexão pg (assume export default pool)
 import occurrencesRouter from "./routes/occurrences.js";
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || process.env.PORT_APP || 3000;
 
-// =====================
-// MIDDLEWARES
-// =====================
+// Middlewares
 app.use(express.json());
 app.use(
   cors({
-    origin: "*", // 🔓 pode restringir depois para seu GitHub Pages
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type"],
+    origin: "*", // 🔐 pode restringir depois ao domínio do frontend
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
-// =====================
-// ROTA PRINCIPAL
-// =====================
+// Rota principal
 app.get("/", (req, res) => {
   res.send("🚔 API ROTAM Backend funcionando!");
 });
 
-// =====================
-// SETUP DA TABELA USERS
-// =====================
+/*
+  ENDPOINTS DE SETUP / AUXILIARES
+  - São úteis para configuração inicial. Remova/proteja depois.
+*/
+
+// 1) Cria a tabela users (se não existir) — campos básicos
 app.get("/setup-users-table", async (req, res) => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        username TEXT NOT NULL UNIQUE,       -- garante que username não se repita
-        password_hash TEXT NOT NULL,
+        username TEXT UNIQUE,     -- UNIQUE aqui é seguro; se sua UI já criou outra coluna, ok
+        password_hash TEXT,
+        role TEXT DEFAULT 'user',
         name TEXT,
         phone TEXT,
-        role TEXT NOT NULL DEFAULT 'user',
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-    res.send("✅ Tabela 'users' verificada/criada com sucesso (com UNIQUE em username).");
-  } catch (e) {
-    console.error("Erro ao criar tabela users:", e);
-    res
-      .status(500)
-      .send("❌ Erro ao criar tabela users: " + (e?.message || "desconhecido"));
+    return res.send("✅ Tabela 'users' verificada/criada com sucesso.");
+  } catch (err) {
+    console.error("Erro setup-users-table:", err);
+    return res.status(500).send("Erro ao criar/verificar tabela users: " + err.message);
   }
 });
 
-// =====================
-// CRIAR USUÁRIO ADMIN
-// =====================
+// 2) Garante que exista um índice único em username (resolve erro ON CONFLICT)
+app.get("/fix-users-unique", async (req, res) => {
+  try {
+    // cria índice único somente se não existir
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM pg_indexes
+          WHERE schemaname = 'public' AND tablename = 'users' AND indexname = 'users_username_unique_idx'
+        ) THEN
+          CREATE UNIQUE INDEX users_username_unique_idx ON users (username);
+        END IF;
+      END
+      $$;
+    `);
+    return res.send("✅ Índice único (username) verificado/criado com sucesso.");
+  } catch (err) {
+    console.error("Erro fix-users-unique:", err);
+    return res.status(500).send("Erro ao criar índice único: " + err.message);
+  }
+});
+
+// 3) Cria usuário admin (usuário 'adm' senha 'adm') — usa bcrypt para hash
+//    Nota: faz INSERT simples; se usuário já existir, retorna mensagem informando.
 app.get("/create-admin", async (req, res) => {
   try {
     const username = "adm";
     const password = "adm";
 
+    // Verifica se já existe
+    const { rows } = await pool.query("SELECT id FROM users WHERE username = $1", [username]);
+    if (rows && rows.length > 0) {
+      return res.send("ℹ️ Usuário 'adm' já existe. Nada a fazer.");
+    }
+
     const hash = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      `INSERT INTO users (username, password_hash, role)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (username) DO NOTHING
-       RETURNING id`,
+    await pool.query(
+      `INSERT INTO users (username, password_hash, role, created_at)
+       VALUES ($1, $2, $3, NOW())`,
       [username, hash, "admin"]
     );
 
-    if (result.rowCount === 0) {
-      return res.send("ℹ️ Usuário 'adm' já existe. Nada a fazer.");
-    }
-    res.send("✅ Usuário admin criado com sucesso (adm/adm).");
-  } catch (e) {
-    console.error("Erro ao criar usuário admin:", e);
-    res
-      .status(500)
-      .send("❌ Erro ao criar usuário admin: " + (e?.message || "desconhecido"));
+    return res.send("✅ Usuário admin criado com sucesso (adm/adm).");
+  } catch (err) {
+    console.error("Erro create-admin:", err);
+    return res.status(500).send("Erro ao criar usuário admin: " + (err.message || err));
   }
 });
 
-// =====================
-// LOGIN (autenticação simples)
-// =====================
+/*
+  AUTENTICAÇÃO SIMPLES (sem JWT) — retorna apenas info básica do usuário
+  Frontend pode armazenar o objeto user em localStorage enquanto houver sessão.
+*/
 app.post("/auth/login", async (req, res) => {
   try {
     const { username, password } = req.body || {};
@@ -98,37 +117,28 @@ app.post("/auth/login", async (req, res) => {
       "SELECT id, username, password_hash, role FROM users WHERE username = $1",
       [username]
     );
-    const user = rows[0];
-    if (!user) {
-      return res.status(401).json({ error: "Credenciais inválidas." });
-    }
 
-    const ok = await bcrypt.compare(password, user.password_hash);
-    if (!ok) {
-      return res.status(401).json({ error: "Credenciais inválidas." });
-    }
+    const user = rows && rows[0];
+    if (!user) return res.status(401).json({ error: "Credenciais inválidas." });
 
-    // Sem JWT por enquanto — devolvemos info básica
-    res.json({
+    const ok = await bcrypt.compare(password, user.password_hash || "");
+    if (!ok) return res.status(401).json({ error: "Credenciais inválidas." });
+
+    // sem JWT por enquanto
+    return res.json({
       success: true,
       user: { id: user.id, username: user.username, role: user.role },
     });
-  } catch (e) {
-    console.error("Erro no login:", e);
-    res
-      .status(500)
-      .json({ error: "Erro interno no login", detail: e?.message || "" });
+  } catch (err) {
+    console.error("Erro /auth/login:", err);
+    return res.status(500).json({ error: "Erro interno no login", detail: err.message });
   }
 });
 
-// =====================
-// ROTAS DE OCORRÊNCIAS
-// =====================
+// Rotas de ocorrências (seu router existente)
 app.use("/occurrences", occurrencesRouter);
 
-// =====================
-// START SERVER
-// =====================
+// Start
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
