@@ -3,7 +3,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import bcrypt from "bcryptjs";
-import pool from "./db.js";                  // <--- usa sua conexão pg
+import pool from "./db.js";                  // conexão com Postgres
 import occurrencesRouter from "./routes/occurrences.js";
 
 dotenv.config();
@@ -11,38 +11,42 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
+// =====================
+// MIDDLEWARES
+// =====================
 app.use(express.json());
 app.use(
   cors({
-    origin: "*", // pode restringir depois para seu GitHub Pages
+    origin: "*", // 🔓 pode restringir depois para seu GitHub Pages
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   })
 );
 
-// Rota principal
+// =====================
+// ROTA PRINCIPAL
+// =====================
 app.get("/", (req, res) => {
   res.send("🚔 API ROTAM Backend funcionando!");
 });
 
 // =====================
-//  ROTAS DE SETUP (TEMPORÁRIAS)
+// SETUP DA TABELA USERS
 // =====================
-
-// 1) Cria/garante a tabela users
 app.get("/setup-users-table", async (req, res) => {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
+        username TEXT NOT NULL UNIQUE,       -- garante que username não se repita
         password_hash TEXT NOT NULL,
+        name TEXT,
+        phone TEXT,
         role TEXT NOT NULL DEFAULT 'user',
         created_at TIMESTAMPTZ DEFAULT NOW()
       )
     `);
-    res.send("✅ Tabela 'users' verificada/criada com sucesso.");
+    res.send("✅ Tabela 'users' verificada/criada com sucesso (com UNIQUE em username).");
   } catch (e) {
     console.error("Erro ao criar tabela users:", e);
     res
@@ -51,7 +55,9 @@ app.get("/setup-users-table", async (req, res) => {
   }
 });
 
-// 2) Cria o usuário admin (adm/adm) se ainda não existir
+// =====================
+// CRIAR USUÁRIO ADMIN
+// =====================
 app.get("/create-admin", async (req, res) => {
   try {
     const username = "adm";
@@ -79,7 +85,7 @@ app.get("/create-admin", async (req, res) => {
 });
 
 // =====================
-//  LOGIN REAL (usar depois no frontend)
+// LOGIN (autenticação simples)
 // =====================
 app.post("/auth/login", async (req, res) => {
   try {
@@ -102,7 +108,7 @@ app.post("/auth/login", async (req, res) => {
       return res.status(401).json({ error: "Credenciais inválidas." });
     }
 
-    // Sem JWT/cookies por enquanto — devolvemos info básica
+    // Sem JWT por enquanto — devolvemos info básica
     res.json({
       success: true,
       user: { id: user.id, username: user.username, role: user.role },
@@ -115,10 +121,14 @@ app.post("/auth/login", async (req, res) => {
   }
 });
 
-// Rotas de ocorrências
+// =====================
+// ROTAS DE OCORRÊNCIAS
+// =====================
 app.use("/occurrences", occurrencesRouter);
 
-// Start
+// =====================
+// START SERVER
+// =====================
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);
 });
