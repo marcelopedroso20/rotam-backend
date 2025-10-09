@@ -1,31 +1,38 @@
 import express from "express";
-import db from "../db.js"; // importa a conexão com o Postgres
+import pkg from "pg";
+const { Pool } = pkg;
 
 const router = express.Router();
 
-// ➕ Adicionar militar
-router.post("/", async (req, res) => {
+// 🔗 Conexão com o PostgreSQL (Railway)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL, // variável de ambiente do Railway
+  ssl: { rejectUnauthorized: false }
+});
+
+// 🔸 GET - listar todos
+router.get("/", async (req, res) => {
   try {
-    const { nome, patente, funcao, setor, foto } = req.body;
-    await db.query(
-      "INSERT INTO efetivo (nome, patente, funcao, setor, foto) VALUES ($1,$2,$3,$4,$5)",
-      [nome, patente, funcao, setor, foto]
-    );
-    res.json({ success: true, message: "Militar adicionado com sucesso!" });
+    const { rows } = await pool.query("SELECT * FROM efetivo ORDER BY id ASC");
+    res.json(rows);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Erro ao cadastrar militar" });
+    res.status(500).json({ error: "Erro ao buscar dados" });
   }
 });
 
-// 📋 Listar todos os militares
-router.get("/", async (req, res) => {
+// 🔸 POST - cadastrar novo militar
+router.post("/", async (req, res) => {
   try {
-    const result = await db.query("SELECT * FROM efetivo ORDER BY id ASC");
-    res.json(result.rows);
+    const { nome, patente, funcao, setor, foto } = req.body;
+    const result = await pool.query(
+      "INSERT INTO efetivo (nome, patente, funcao, setor, foto) VALUES ($1, $2, $3, $4, $5) RETURNING *",
+      [nome, patente, funcao, setor, foto]
+    );
+    res.json(result.rows[0]);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Erro ao buscar efetivo" });
+    res.status(500).json({ error: "Erro ao inserir dado" });
   }
 });
 
