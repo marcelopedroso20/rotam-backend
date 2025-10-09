@@ -1,9 +1,9 @@
 import express from "express";
-import db from "../db.js"; // conexão com Postgres
+import db from "../db.js"; // importa a conexão com o Postgres
 
 const router = express.Router();
 
-// Adicionar militar
+// ➕ Adicionar militar
 router.post("/", async (req, res) => {
   try {
     const { nome, patente, funcao, setor, foto } = req.body;
@@ -18,7 +18,7 @@ router.post("/", async (req, res) => {
   }
 });
 
-// Listar todos
+// 📋 Listar todos os militares
 router.get("/", async (req, res) => {
   try {
     const result = await db.query("SELECT * FROM efetivo ORDER BY id ASC");
