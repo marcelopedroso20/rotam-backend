@@ -13,6 +13,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "segredo-super-seguro"; // coloque no .env depois
 
+// ⬇️ Aqui você adiciona a linha da rota nova
+import efetivoRoutes from "./routes/efetivo.js";
+app.use("/api/efetivo", efetivoRoutes);
+
 // Middlewares
 app.use(express.json());
 app.use(
