@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";   // ⬅️ JWT
 import pool from "./db.js";
 import occurrencesRouter from "./routes/occurrences.js";
+import efetivoRoutes from "./routes/efetivo.js";
 
 dotenv.config();
 
@@ -14,7 +15,6 @@ const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "segredo-super-seguro"; // coloque no .env depois
 
 // ⬇️ Aqui você adiciona a linha da rota nova
-import efetivoRoutes from "./routes/efetivo.js";
 app.use("/api/efetivo", efetivoRoutes);
 
 // Middlewares
