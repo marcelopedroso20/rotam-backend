@@ -1,39 +1,46 @@
 // routes/auth.js
 import { Router } from "express";
-import pool from "../db.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import pkg from "pg";
+const { Pool } = pkg;
 
 const router = Router();
-const SECRET = process.env.JWT_SECRET || "segredo123";
 
-// POST /auth/login
+// 🔑 Conexão com o banco PostgreSQL (Railway)
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
+});
+
+// 🔒 POST /auth/login — valida login no banco
 router.post("/login", async (req, res) => {
   try {
-    const { username, password } = req.body;
-    const result = await pool.query("SELECT * FROM users WHERE username=$1", [username]);
+    const { usuario, senha } = req.body;
+
+    if (!usuario || !senha) {
+      return res.status(400).json({ success: false, error: "Usuário e senha são obrigatórios" });
+    }
+
+    // Consulta simples (sem bcrypt)
+    const result = await pool.query(
+      "SELECT * FROM usuarios WHERE usuario = $1 AND senha = $2",
+      [usuario, senha]
+    );
 
     if (result.rowCount === 0) {
-      return res.status(401).json({ success: false, error: "Usuário não encontrado" });
+      return res.status(401).json({ success: false, error: "Usuário ou senha inválidos" });
     }
 
     const user = result.rows[0];
-    const match = await bcrypt.compare(password, user.password_hash);
 
-    if (!match) {
-      return res.status(401).json({ success: false, error: "Senha incorreta" });
-    }
-
-    const token = jwt.sign({ id: user.id, username: user.username, role: user.role }, SECRET, { expiresIn: "1h" });
-
+    // Resposta simples (sem JWT)
     res.json({
       success: true,
-      token,
-      user: { id: user.id, username: user.username, role: user.role }
+      message: "Login bem-sucedido!",
+      user: { id: user.id, usuario: user.usuario }
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, error: "Erro no login" });
+    console.error("❌ Erro no login:", err);
+    res.status(500).json({ success: false, error: "Erro interno no login" });
   }
 });
 
