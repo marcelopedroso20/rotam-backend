@@ -1,4 +1,4 @@
-// routes/efetivo.js
+// routes/viaturas.js
 import express from "express";
 import pool from "../db.js";
 import { authenticateToken } from "../middleware/authMiddleware.js";
@@ -7,8 +7,8 @@ const router = express.Router();
 
 router.get("/", authenticateToken, async (_req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM efetivo ORDER BY id ASC");
-    res.json(result.rows);
+    const { rows } = await pool.query("SELECT * FROM viaturas ORDER BY id ASC");
+    res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -16,12 +16,12 @@ router.get("/", authenticateToken, async (_req, res) => {
 
 router.post("/", authenticateToken, async (req, res) => {
   try {
-    const { nome, patente, funcao, setor, turno, viatura, placa, status, latitude, longitude, foto } = req.body;
-    if (!nome || !patente) return res.status(400).json({ error: "Campos obrigatórios: nome, patente" });
+    const { prefixo, placa, modelo, status, localizacao, latitude, longitude } = req.body;
+    if (!prefixo) return res.status(400).json({ error: "Campo obrigatório: prefixo" });
     const { rows } = await pool.query(
-      `INSERT INTO efetivo (nome, patente, funcao, setor, turno, viatura, placa, status, latitude, longitude, foto)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-      [nome, patente, funcao, setor, turno, viatura, placa, status, latitude, longitude, foto]
+      `INSERT INTO viaturas (prefixo, placa, modelo, status, localizacao, latitude, longitude)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+      [prefixo, placa, modelo, status, localizacao, latitude, longitude]
     );
     res.status(201).json(rows[0]);
   } catch (e) {
@@ -32,13 +32,12 @@ router.post("/", authenticateToken, async (req, res) => {
 router.put("/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { nome, patente, funcao, setor, turno, viatura, placa, status, latitude, longitude, foto } = req.body;
+    const { prefixo, placa, modelo, status, localizacao, latitude, longitude } = req.body;
     const { rows, rowCount } = await pool.query(
-      `UPDATE efetivo SET
-        nome=$1, patente=$2, funcao=$3, setor=$4, turno=$5, viatura=$6, placa=$7, status=$8,
-        latitude=$9, longitude=$10, foto=$11, atualizado_em=NOW()
-       WHERE id=$12 RETURNING *`,
-      [nome, patente, funcao, setor, turno, viatura, placa, status, latitude, longitude, foto, id]
+      `UPDATE viaturas SET
+        prefixo=$1, placa=$2, modelo=$3, status=$4, localizacao=$5, latitude=$6, longitude=$7, atualizado_em=NOW()
+       WHERE id=$8 RETURNING *`,
+      [prefixo, placa, modelo, status, localizacao, latitude, longitude, id]
     );
     if (rowCount === 0) return res.status(404).json({ error: "Registro não encontrado" });
     res.json(rows[0]);
@@ -50,7 +49,7 @@ router.put("/:id", authenticateToken, async (req, res) => {
 router.delete("/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const r = await pool.query("DELETE FROM efetivo WHERE id=$1 RETURNING *", [id]);
+    const r = await pool.query("DELETE FROM viaturas WHERE id=$1 RETURNING *", [id]);
     if (r.rowCount === 0) return res.status(404).json({ error: "Registro não encontrado" });
     res.json({ message: "Excluído com sucesso" });
   } catch (e) {
