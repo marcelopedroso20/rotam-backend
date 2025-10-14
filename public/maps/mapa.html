@@ -1,1 +1,64 @@
-#teste
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mapa de Força - ROTAM</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    .legend { background: white; padding: 8px; border-radius: 6px; box-shadow: 0 2px 6px rgba(0,0,0,.15); }
+    .legend h4 { margin: 0 0 4px 0; font-size: 14px; }
+    .legend div { font-size: 12px; margin: 2px 0; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+  const map = L.map('map').setView([-15.6, -56.1], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; OpenStreetMap'
+  }).addTo(map);
+
+  const efetivoIcon = L.icon({ iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png', iconSize: [25,41], iconAnchor: [12,41]});
+  const viaturaIcon = L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-blue.png', iconSize: [25,41], iconAnchor: [12,41]});
+  const ocorrIcon = L.icon({ iconUrl: 'https://cdn.jsdelivr.net/gh/pointhi/leaflet-color-markers@master/img/marker-icon-red.png', iconSize: [25,41], iconAnchor: [12,41]});
+
+  async function loadLayer(url, icon, fmt) {
+    const res = await fetch(url);
+    const data = await res.json();
+    data.forEach(d => {
+      if (d.latitude && d.longitude) {
+        const m = L.marker([Number(d.latitude), Number(d.longitude)], { icon }).addTo(map);
+        m.bindPopup(fmt(d));
+      }
+    });
+  }
+
+  loadLayer('/api/map/efetivo', efetivoIcon, (d) =>
+    `<b>EFETIVO</b><br>Nome: ${d.nome}<br>Patente: ${d.patente}<br>Setor: ${d.setor || '-'}<br>Turno: ${d.turno || '-'}<br>Viatura: ${d.viatura || '-'}<br>Status: ${d.status || '-'}<br><small>Atualizado: ${d.atualizado_em || '-'}</small>`
+  );
+  loadLayer('/api/map/viaturas', viaturaIcon, (d) =>
+    `<b>VIATURA</b><br>Prefixo: ${d.prefixo}<br>Modelo: ${d.modelo || '-'}<br>Placa: ${d.placa || '-'}<br>Status: ${d.status || '-'}`
+  );
+  loadLayer('/api/map/occurrences', ocorrIcon, (d) =>
+    `<b>OCORRÊNCIA</b><br>Título: ${d.titulo}<br>Status: ${d.status || '-'}<br>Data: ${d.data}`
+  );
+
+  // Legenda
+  const legend = L.control({position: 'topright'});
+  legend.onAdd = function () {
+    const div = L.DomUtil.create('div', 'legend');
+    div.innerHTML = `<h4>Mapa de Força</h4>
+      <div>🔵 Viaturas</div>
+      <div>⚫ Efetivo</div>
+      <div>🔴 Ocorrências</div>`;
+    return div;
+  };
+  legend.addTo(map);
+</script>
+</body>
+</html>
