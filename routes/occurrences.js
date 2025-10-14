@@ -1,7 +1,7 @@
 // routes/occurrences.js
 import { Router } from "express";
 import pool from "../db.js";
-import { authenticateToken } from "../middleware/auth.js";
+import { authenticateToken } from "../middleware/authMiddleware.js";
 
 const router = Router();
 
