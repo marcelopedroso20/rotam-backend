@@ -1,7 +1,7 @@
 {
   "name": "rotam-backend",
-  "version": "1.1.0",
-  "description": "API Backend para gerenciamento de ocorrências ROTAM",
+  "version": "2.0.0",
+  "description": "API Backend para gerenciamento de ocorrências e Mapa de Força - ROTAM",
   "main": "server.js",
   "type": "module",
   "scripts": {
@@ -18,8 +18,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC"
+  }
 }
