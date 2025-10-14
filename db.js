@@ -1,36 +1,33 @@
+// db.js
 import pkg from "pg";
 import dotenv from "dotenv";
 
 dotenv.config();
 const { Pool } = pkg;
 
-// 🧱 Cria a conexão com o PostgreSQL (Railway)
+// 🧱 Conexão única com PostgreSQL (Railway)
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Necessário no Railway
-  },
+  ssl: { rejectUnauthorized: false },
 });
 
-// 🧩 Função de verificação de conexão (opcional)
+// Log de status inicial
 pool.connect()
-  .then(() => console.log("🟢 Banco de dados conectado com sucesso (PostgreSQL - Railway)"))
+  .then((c) => {
+    console.log("🟢 Banco conectado com sucesso (PostgreSQL - Railway)");
+    c.release();
+  })
   .catch((err) => console.error("🔴 Erro ao conectar ao banco:", err.message));
 
-// 🧠 Função auxiliar para consultas SQL
+// Helper de query (opcional)
 export async function query(text, params) {
-  try {
-    const result = await pool.query(text, params);
-    return result;
-  } catch (error) {
-    console.error("Erro na query:", error.message);
-    throw error;
-  }
+  const result = await pool.query(text, params);
+  return result;
 }
 
-// 🔁 Tratamento de falha de conexão automática (Railway pode reiniciar às vezes)
+// Reconexão automática
 pool.on("error", (err) => {
-  console.error("⚠️ Conexão com o banco perdida. Tentando reconectar...", err.message);
+  console.error("⚠️ Conexão com o banco perdida:", err.message);
 });
 
 export default pool;

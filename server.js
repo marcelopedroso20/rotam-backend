@@ -2,33 +2,27 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import db from "./db.js";
-import efetivoRoutes from "./routes/efetivo.js";
+import bcrypt from "bcryptjs";
+import pool from "./db.js";
+
 import authRoutes from "./routes/auth.js";
+import efetivoRoutes from "./routes/efetivo.js";
 import occurrencesRoutes from "./routes/occurrences.js";
 
 dotenv.config();
+
 const app = express();
+const PORT = process.env.PORT || 3000;
 
 // 🌍 Middlewares globais
 app.use(cors({
-  origin: "*", // ou defina ["https://marcelopedroso20.github.io"] para segurança
+  origin: "*", // Ajuste depois para o domínio do seu frontend
   methods: ["GET", "POST", "PUT", "DELETE"],
   allowedHeaders: ["Content-Type", "Authorization"],
 }));
-app.use(express.json({ limit: "10mb" })); // permite imagens base64 ou payloads grandes
+app.use(express.json({ limit: "10mb" }));
 
-// 🧱 Teste da conexão com o banco PostgreSQL
-db.connect()
-  .then(() => console.log("🟢 Conectado ao banco de dados PostgreSQL com sucesso!"))
-  .catch((err) => console.error("🔴 Erro ao conectar ao banco:", err.message));
-
-// 🚦 Rotas principais
-app.use("/api/auth", authRoutes);         // Login / autenticação
-app.use("/api/efetivo", efetivoRoutes);   // Cadastro militar
-app.use("/api/occurrences", occurrencesRoutes); // Ocorrências / relatórios
-
-// 🔍 Rota inicial de teste (status da API)
+// 🔍 Rota inicial (status da API)
 app.get("/", (req, res) => {
   res.status(200).json({
     status: "ok",
@@ -37,23 +31,58 @@ app.get("/", (req, res) => {
   });
 });
 
-// ⚠️ Tratamento para rotas inexistentes (404)
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "❌ Rota não encontrada.",
-    rota: req.originalUrl,
-  });
+// 🚦 Rotas principais
+app.use("/api/auth", authRoutes);
+app.use("/api/efetivo", efetivoRoutes);
+app.use("/api/occurrences", occurrencesRoutes);
+
+// 🛠️ Setup: cria tabela 'usuarios' e usuário padrão adm/adm (com hash)
+app.get("/setup-admin", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS usuarios (
+        id SERIAL PRIMARY KEY,
+        usuario TEXT UNIQUE NOT NULL,
+        senha_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'user',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    const username = "adm";
+    const plain = "adm";
+    const hash = await bcrypt.hash(plain, 10);
+
+    const result = await pool.query(
+      \`INSERT INTO usuarios (usuario, senha_hash, role)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (usuario) DO NOTHING
+       RETURNING id\`,
+      [username, hash, "admin"]
+    );
+
+    if (result.rowCount === 0) {
+      return res.json({ success: true, message: "ℹ️ Usuário 'adm' já existe." });
+    }
+    res.json({ success: true, message: "✅ Usuário admin criado (adm/adm)." });
+  } catch (e) {
+    console.error("Erro no setup-admin:", e.message);
+    res.status(500).json({ success: false, error: "Erro ao criar admin: " + e.message });
+  }
 });
 
-// ⚙️ Inicialização do servidor
-const PORT = process.env.PORT || 3000;
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: "❌ Rota não encontrada.", rota: req.originalUrl });
+});
+
+// ⚙️ Inicialização
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
-  console.log("🌐 Ambiente:", process.env.NODE_ENV || "desenvolvimento");
-  console.log("🔗 Rotas disponíveis:");
-  console.log("   → /api/auth/login");
-  console.log("   → /api/efetivo");
-  console.log("   → /api/occurrences");
-  console.log("   → /");
+  console.log("🔗 Rotas:");
+  console.log("   → GET  /");
+  console.log("   → GET  /setup-admin");
+  console.log("   → POST /api/auth/login");
+  console.log("   → CRUD /api/efetivo");
+  console.log("   → CRUD /api/occurrences");
 });
