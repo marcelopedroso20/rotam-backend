@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import pool from "./db.js";
 
+// 📦 Import das rotas
 import authRoutes from "./routes/auth.js";
 import efetivoRoutes from "./routes/efetivo.js";
 import viaturasRoutes from "./routes/viaturas.js";
@@ -21,12 +22,11 @@ const PORT = process.env.PORT || 3000;
 // 🌍 Middlewares globais
 app.use(
   cors({
-    origin: "*", // ou ["https://marcelopedroso20.github.io"] se quiser limitar ao seu frontend
+    origin: "*", // ou "https://marcelopedroso20.github.io" se quiser limitar
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
-
 app.use(express.json({ limit: "10mb" }));
 
 // 📂 Arquivos estáticos (para o mapa Leaflet)
@@ -41,7 +41,7 @@ app.get("/", (req, res) => {
   res.status(200).json({
     status: "ok",
     message: "🚀 API ROTAM Backend v2 online!",
-    versao: "2.0.0",
+    versao: "2.0.1",
     docs: {
       setup_admin: "/setup-admin",
       setup_db: "/setup-db",
@@ -50,13 +50,17 @@ app.get("/", (req, res) => {
   });
 });
 
-// 🚦 Rotas principais
+// =============================================================
+// 🚦 ROTAS PRINCIPAIS (devem vir ANTES do handler 404!)
+// =============================================================
 app.use("/api/auth", authRoutes);
 app.use("/api/efetivo", efetivoRoutes);
 app.use("/api/viaturas", viaturasRoutes);
 app.use("/api/occurrences", occurrencesRoutes);
 
-// 🛠️ Setup: cria tabela 'usuarios' e usuário padrão adm/adm (com hash)
+// =============================================================
+// 🛠️ SETUP ADMIN - Cria usuário padrão (adm/adm)
+// =============================================================
 app.get("/setup-admin", async (req, res) => {
   try {
     await pool.query(`
@@ -73,7 +77,6 @@ app.get("/setup-admin", async (req, res) => {
     const plain = "adm";
     const hash = await bcrypt.hash(plain, 10);
 
-    // ⚙️ Inserção limpa (sem erro de caractere oculto)
     const result = await pool.query(
       `INSERT INTO usuarios (usuario, senha_hash, role)
        VALUES ($1, $2, $3)
@@ -101,10 +104,11 @@ app.get("/setup-admin", async (req, res) => {
   }
 });
 
-// 🛠️ Setup: cria as tabelas necessárias para o Mapa de Força e Ocorrências
+// =============================================================
+// 🛠️ SETUP DB - Criação das tabelas principais
+// =============================================================
 app.get("/setup-db", async (req, res) => {
   try {
-    // usuarios (já em /setup-admin), efetivo, viaturas, occurrences
     await pool.query(`
       CREATE TABLE IF NOT EXISTS efetivo (
         id SERIAL PRIMARY KEY,
@@ -201,7 +205,9 @@ app.get("/api/map/occurrences", async (_req, res) => {
   }
 });
 
-// 🚫 404 handler
+// =============================================================
+// 🚫 404 - deve ser a ÚLTIMA rota
+// =============================================================
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -210,14 +216,17 @@ app.use((req, res) => {
   });
 });
 
+// =============================================================
 // ⚙️ Inicialização
+// =============================================================
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
-  console.log("🔗 Rotas:");
+  console.log("🔗 Rotas principais:");
   console.log("   → GET  /");
   console.log("   → GET  /setup-admin");
   console.log("   → GET  /setup-db");
-  console.log("   → GET  /public/maps/mapa.html");
   console.log("   → POST /api/auth/login");
   console.log("   → CRUD /api/efetivo | /api/viaturas | /api/occurrences");
+  console.log("   → GET  /api/map/*");
+  console.log("🌐 Banco conectado (PostgreSQL - Railway)");
 });
