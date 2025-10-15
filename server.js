@@ -1,4 +1,7 @@
-// server.js
+// ===============================
+// 🚓 ROTAM Backend v2 - Servidor Principal
+// ===============================
+
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -16,14 +19,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 🌍 Middlewares globais
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+app.use(
+  cors({
+    origin: "*", // ou ["https://marcelopedroso20.github.io"] se quiser limitar ao seu frontend
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(express.json({ limit: "10mb" }));
 
-// 🔎 Arquivos estáticos (para o mapa Leaflet)
+// 📂 Arquivos estáticos (para o mapa Leaflet)
 import path from "path";
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
@@ -39,8 +45,8 @@ app.get("/", (req, res) => {
     docs: {
       setup_admin: "/setup-admin",
       setup_db: "/setup-db",
-      mapa: "/public/maps/mapa.html"
-    }
+      mapa: "/public/maps/mapa.html",
+    },
   });
 });
 
@@ -60,28 +66,38 @@ app.get("/setup-admin", async (req, res) => {
         senha_hash TEXT NOT NULL,
         role TEXT NOT NULL DEFAULT 'user',
         created_at TIMESTAMPTZ DEFAULT NOW()
-      )
+      );
     `);
 
     const username = "adm";
     const plain = "adm";
     const hash = await bcrypt.hash(plain, 10);
 
+    // ⚙️ Inserção limpa (sem erro de caractere oculto)
     const result = await pool.query(
-      \`INSERT INTO usuarios (usuario, senha_hash, role)
+      `INSERT INTO usuarios (usuario, senha_hash, role)
        VALUES ($1, $2, $3)
        ON CONFLICT (usuario) DO NOTHING
-       RETURNING id\`,
+       RETURNING id`,
       [username, hash, "admin"]
     );
 
     if (result.rowCount === 0) {
-      return res.json({ success: true, message: "ℹ️ Usuário 'adm' já existe." });
+      return res.json({
+        success: true,
+        message: "ℹ️ Usuário 'adm' já existe.",
+      });
     }
-    res.json({ success: true, message: "✅ Usuário admin criado (adm/adm)." });
+
+    res.json({
+      success: true,
+      message: "✅ Usuário admin criado (adm/adm).",
+    });
   } catch (e) {
     console.error("Erro no setup-admin:", e.message);
-    res.status(500).json({ success: false, error: "Erro ao criar admin: " + e.message });
+    res
+      .status(500)
+      .json({ success: false, error: "Erro ao criar admin: " + e.message });
   }
 });
 
@@ -140,18 +156,23 @@ app.get("/setup-db", async (req, res) => {
 
     res.json({
       success: true,
-      message: "✅ Tabelas criadas/verificadas: efetivo, viaturas, occurrences",
+      message:
+        "✅ Tabelas criadas/verificadas: efetivo, viaturas, occurrences",
     });
   } catch (e) {
     console.error("Erro no setup-db:", e.message);
-    res.status(500).json({ success: false, error: "Erro ao criar tabelas: " + e.message });
+    res
+      .status(500)
+      .json({ success: false, error: "Erro ao criar tabelas: " + e.message });
   }
 });
 
-// 🔎 Endpoints de dados para o mapa Leaflet
+// 🌍 Endpoints públicos do mapa Leaflet
 app.get("/api/map/efetivo", async (_req, res) => {
   try {
-    const { rows } = await pool.query("SELECT id, nome, patente, setor, turno, viatura, status, latitude, longitude, atualizado_em FROM efetivo WHERE latitude IS NOT NULL AND longitude IS NOT NULL");
+    const { rows } = await pool.query(
+      "SELECT id, nome, patente, setor, turno, viatura, status, latitude, longitude, atualizado_em FROM efetivo WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
+    );
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -160,7 +181,9 @@ app.get("/api/map/efetivo", async (_req, res) => {
 
 app.get("/api/map/viaturas", async (_req, res) => {
   try {
-    const { rows } = await pool.query("SELECT id, prefixo, placa, modelo, status, latitude, longitude, atualizado_em FROM viaturas WHERE latitude IS NOT NULL AND longitude IS NOT NULL");
+    const { rows } = await pool.query(
+      "SELECT id, prefixo, placa, modelo, status, latitude, longitude, atualizado_em FROM viaturas WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
+    );
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -169,16 +192,22 @@ app.get("/api/map/viaturas", async (_req, res) => {
 
 app.get("/api/map/occurrences", async (_req, res) => {
   try {
-    const { rows } = await pool.query("SELECT id, titulo, data, status, latitude, longitude FROM occurrences WHERE latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY id DESC LIMIT 300");
+    const { rows } = await pool.query(
+      "SELECT id, titulo, data, status, latitude, longitude FROM occurrences WHERE latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY id DESC LIMIT 300"
+    );
     res.json(rows);
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// 404 handler
+// 🚫 404 handler
 app.use((req, res) => {
-  res.status(404).json({ success: false, error: "❌ Rota não encontrada.", rota: req.originalUrl });
+  res.status(404).json({
+    success: false,
+    error: "❌ Rota não encontrada.",
+    rota: req.originalUrl,
+  });
 });
 
 // ⚙️ Inicialização
