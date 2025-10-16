@@ -174,7 +174,6 @@ app.use((req, res) => {
 });
 
 // 🔐 Rota temporária: gerar hash bcryptjs para teste
-import bcrypt from "bcryptjs";
 app.get("/gen-hash/:senha", async (req, res) => {
   const hash = await bcrypt.hash(req.params.senha, 10);
   res.json({ senha: req.params.senha, hash });
