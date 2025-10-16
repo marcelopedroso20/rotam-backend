@@ -7,8 +7,8 @@ import pool from "../db.js";
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_super_forte";
 
-// ✅ Log para confirmar que o módulo foi carregado
-console.log("🔐 Rota de autenticação carregada: /api/auth/login");
+// Log de depuração
+console.log("✅ Rota /api/auth carregada!");
 
 router.post("/login", async (req, res) => {
   try {
@@ -26,17 +26,22 @@ router.post("/login", async (req, res) => {
       [usuario]
     );
 
-    const user = rows[0];
-    if (!user)
-      return res
-        .status(401)
-        .json({ success: false, error: "Usuário ou senha inválidos" });
+    if (rows.length === 0) {
+      return res.status(401).json({
+        success: false,
+        error: "Usuário ou senha inválidos",
+      });
+    }
 
-    const ok = await bcrypt.compare(senha, user.senha_hash);
-    if (!ok)
-      return res
-        .status(401)
-        .json({ success: false, error: "Usuário ou senha inválidos" });
+    const user = rows[0];
+    const senhaOk = await bcrypt.compare(senha, user.senha_hash);
+
+    if (!senhaOk) {
+      return res.status(401).json({
+        success: false,
+        error: "Usuário ou senha inválidos",
+      });
+    }
 
     const token = jwt.sign(
       { id: user.id, usuario: user.usuario, role: user.role },
@@ -44,14 +49,13 @@ router.post("/login", async (req, res) => {
       { expiresIn: "8h" }
     );
 
-    console.log(`✅ Login autorizado: ${usuario}`);
     res.json({
       success: true,
       message: "Login realizado com sucesso!",
       token,
     });
   } catch (error) {
-    console.error("❌ Erro no login:", error);
+    console.error("❌ Erro no login:", error.message);
     res.status(500).json({ success: false, error: "Erro interno no servidor" });
   }
 });
