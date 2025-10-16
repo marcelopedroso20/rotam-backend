@@ -173,6 +173,13 @@ app.use((req, res) => {
   res.status(404).json({ success: false, error: "❌ Rota não encontrada.", rota: req.originalUrl });
 });
 
+// 🔐 Rota temporária: gerar hash bcryptjs para teste
+import bcrypt from "bcryptjs";
+app.get("/gen-hash/:senha", async (req, res) => {
+  const hash = await bcrypt.hash(req.params.senha, 10);
+  res.json({ senha: req.params.senha, hash });
+});
+
 // =============================================================
 // ⚙️ Inicialização
 // =============================================================
