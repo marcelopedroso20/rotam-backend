@@ -1,57 +1,44 @@
 // ===============================
 // 🚓 ROTAM Backend v2 - Servidor Principal
 // ===============================
-
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import pool from "./db.js";
 
-// 📦 Import das rotas
 import authRoutes from "./routes/auth.js";
 import efetivoRoutes from "./routes/efetivo.js";
 import viaturasRoutes from "./routes/viaturas.js";
 import occurrencesRoutes from "./routes/occurrences.js";
 
 dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🌍 Middlewares globais
-app.use(
-  cors({
-    origin: "*", // ou "https://marcelopedroso20.github.io" se quiser limitar
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+// 🌍 Middlewares
+app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "DELETE"], allowedHeaders: ["Content-Type", "Authorization"] }));
 app.use(express.json({ limit: "10mb" }));
 
-// 📂 Arquivos estáticos (para o mapa Leaflet)
+// 📂 Arquivos estáticos
 import path from "path";
 import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use("/public", express.static(path.join(__dirname, "public")));
 
-// 🔍 Rota inicial (status da API)
+// 🔍 Status
 app.get("/", (req, res) => {
   res.status(200).json({
     status: "ok",
     message: "🚀 API ROTAM Backend v2 online!",
     versao: "2.0.1",
-    docs: {
-      setup_admin: "/setup-admin",
-      setup_db: "/setup-db",
-      mapa: "/public/maps/mapa.html",
-    },
+    docs: { setup_admin: "/setup-admin", setup_db: "/setup-db", mapa: "/public/maps/mapa.html" },
   });
 });
 
 // =============================================================
-// 🚦 ROTAS PRINCIPAIS (devem vir ANTES do handler 404!)
+// 🚦 Rotas principais
 // =============================================================
 app.use("/api/auth", authRoutes);
 app.use("/api/efetivo", efetivoRoutes);
@@ -59,7 +46,7 @@ app.use("/api/viaturas", viaturasRoutes);
 app.use("/api/occurrences", occurrencesRoutes);
 
 // =============================================================
-// 🛠️ SETUP ADMIN - Cria usuário padrão (adm/adm)
+// 🛠️ Setup Admin
 // =============================================================
 app.get("/setup-admin", async (req, res) => {
   try {
@@ -74,8 +61,7 @@ app.get("/setup-admin", async (req, res) => {
     `);
 
     const username = "adm";
-    const plain = "adm";
-    const hash = await bcrypt.hash(plain, 10);
+    const hash = await bcrypt.hash("adm", 10);
 
     const result = await pool.query(
       `INSERT INTO usuarios (usuario, senha_hash, role)
@@ -85,27 +71,18 @@ app.get("/setup-admin", async (req, res) => {
       [username, hash, "admin"]
     );
 
-    if (result.rowCount === 0) {
-      return res.json({
-        success: true,
-        message: "ℹ️ Usuário 'adm' já existe.",
-      });
-    }
+    if (result.rowCount === 0)
+      return res.json({ success: true, message: "ℹ️ Usuário 'adm' já existe." });
 
-    res.json({
-      success: true,
-      message: "✅ Usuário admin criado (adm/adm).",
-    });
+    res.json({ success: true, message: "✅ Usuário admin criado (adm/adm)." });
   } catch (e) {
     console.error("Erro no setup-admin:", e.message);
-    res
-      .status(500)
-      .json({ success: false, error: "Erro ao criar admin: " + e.message });
+    res.status(500).json({ success: false, error: "Erro ao criar admin: " + e.message });
   }
 });
 
 // =============================================================
-// 🛠️ SETUP DB - Criação das tabelas principais
+// 🛠️ Setup DB
 // =============================================================
 app.get("/setup-db", async (req, res) => {
   try {
@@ -158,62 +135,42 @@ app.get("/setup-db", async (req, res) => {
       );
     `);
 
-    res.json({
-      success: true,
-      message:
-        "✅ Tabelas criadas/verificadas: efetivo, viaturas, occurrences",
-    });
+    res.json({ success: true, message: "✅ Tabelas criadas/verificadas: efetivo, viaturas, occurrences" });
   } catch (e) {
     console.error("Erro no setup-db:", e.message);
-    res
-      .status(500)
-      .json({ success: false, error: "Erro ao criar tabelas: " + e.message });
+    res.status(500).json({ success: false, error: "Erro ao criar tabelas: " + e.message });
   }
 });
 
-// 🌍 Endpoints públicos do mapa Leaflet
+// =============================================================
+// 🌍 Endpoints do mapa
+// =============================================================
 app.get("/api/map/efetivo", async (_req, res) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT id, nome, patente, setor, turno, viatura, status, latitude, longitude, atualizado_em FROM efetivo WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
-    );
+    const { rows } = await pool.query("SELECT * FROM efetivo WHERE latitude IS NOT NULL AND longitude IS NOT NULL");
     res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get("/api/map/viaturas", async (_req, res) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT id, prefixo, placa, modelo, status, latitude, longitude, atualizado_em FROM viaturas WHERE latitude IS NOT NULL AND longitude IS NOT NULL"
-    );
+    const { rows } = await pool.query("SELECT * FROM viaturas WHERE latitude IS NOT NULL AND longitude IS NOT NULL");
     res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.get("/api/map/occurrences", async (_req, res) => {
   try {
-    const { rows } = await pool.query(
-      "SELECT id, titulo, data, status, latitude, longitude FROM occurrences WHERE latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY id DESC LIMIT 300"
-    );
+    const { rows } = await pool.query("SELECT * FROM occurrences WHERE latitude IS NOT NULL AND longitude IS NOT NULL ORDER BY id DESC LIMIT 300");
     res.json(rows);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // =============================================================
-// 🚫 404 - deve ser a ÚLTIMA rota
+// 🚫 404 handler (sempre por último!)
 // =============================================================
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: "❌ Rota não encontrada.",
-    rota: req.originalUrl,
-  });
+  res.status(404).json({ success: false, error: "❌ Rota não encontrada.", rota: req.originalUrl });
 });
 
 // =============================================================
@@ -221,12 +178,10 @@ app.use((req, res) => {
 // =============================================================
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
-  console.log("🔗 Rotas principais:");
+  console.log("🔗 Rotas:");
   console.log("   → GET  /");
   console.log("   → GET  /setup-admin");
   console.log("   → GET  /setup-db");
   console.log("   → POST /api/auth/login");
   console.log("   → CRUD /api/efetivo | /api/viaturas | /api/occurrences");
-  console.log("   → GET  /api/map/*");
-  console.log("🌐 Banco conectado (PostgreSQL - Railway)");
 });
