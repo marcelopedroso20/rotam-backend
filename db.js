@@ -16,12 +16,12 @@ const pool = new Pool({
     require: true,
     rejectUnauthorized: false, // 🔑 obrigatório no Render
   },
-  connectionTimeoutMillis: 10000, // evita travar em timeout
-  idleTimeoutMillis: 30000,       // fecha conexões ociosas
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
 });
 
 pool.on("connect", () => {
-  console.log("🟢 Conectado ao PostgreSQL com SSL");
+  console.log("🟢 Conectado ao PostgreSQL com SSL (Render).");
 });
 
 pool.on("error", (err) => {
