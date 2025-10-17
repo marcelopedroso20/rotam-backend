@@ -1,19 +1,27 @@
 // db.js
 import pkg from "pg";
-import dotenv from "dotenv";
-
-dotenv.config();
 const { Pool } = pkg;
+import dotenv from "dotenv";
+dotenv.config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+// Log para depuração (pode remover depois)
+console.log("Conectando ao banco com:");
+console.log({
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  port: process.env.DB_PORT
 });
 
-pool.connect()
-  .then((c) => { console.log("🟢 Banco conectado (PostgreSQL - Railway)"); c.release(); })
-  .catch((err) => console.error("🔴 Erro ao conectar ao banco:", err.message));
-
-pool.on("error", (err) => console.error("⚠️ Conexão perdida:", err.message));
+const pool = new Pool({
+  host: process.env.DB_HOST,
+  database: process.env.DB_NAME,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  port: process.env.DB_PORT || 5432,
+  ssl: {
+    rejectUnauthorized: false
+  }
+});
 
 export default pool;
