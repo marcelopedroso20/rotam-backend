@@ -9,16 +9,17 @@ router.get("/", async (req, res) => {
   try {
     client = await pool.connect();
     console.log("🟢 Conectado ao banco de dados (teste)");
-    
-    // Testa a query mais simples possível
-    const result = await client.query("SELECT NOW() as data_atual");
+
+    // Teste simples
+    const result = await client.query("SELECT NOW() AS data_atual");
     console.log("📅 Data do servidor PostgreSQL:", result.rows[0].data_atual);
 
-    // Lista todas as tabelas públicas
+    // Lista de tabelas públicas
     const tables = await client.query(`
       SELECT table_name 
       FROM information_schema.tables 
-      WHERE table_schema = 'public';
+      WHERE table_schema = 'public'
+      ORDER BY table_name;
     `);
 
     res.json({
