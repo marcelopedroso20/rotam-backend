@@ -11,15 +11,16 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT || 5432,
   ssl: {
-    rejectUnauthorized: false, // ignora certificados autoassinados
+    require: true,                // Render exige SSL
+    rejectUnauthorized: false     // Ignora certificado self-signed
   },
-  max: 3, // Render free não suporta muitos clientes simultâneos
-  connectionTimeoutMillis: 10000, // 10s
-  idleTimeoutMillis: 10000, // encerra conexões ociosas mais rápido
-  keepAlive: true, // mantém o socket ativo
+  connectionTimeoutMillis: 0,     // sem timeout de conexão
+  idleTimeoutMillis: 0,           // mantém a conexão viva
+  keepAlive: true,                // mantém socket ativo
+  max: 2                          // limite pequeno p/ plano free
 });
 
-pool.on("connect", () => console.log("🟢 Pool conectado ao PostgreSQL (Render)"));
-pool.on("error", (err) => console.error("⚠️ Erro no pool:", err));
+pool.on("connect", () => console.log("🟢 Conectado ao PostgreSQL via SSL"));
+pool.on("error", (err) => console.error("⚠️ Erro no pool de conexões:", err));
 
 export default pool;
