@@ -1,8 +1,10 @@
 // db.js
 import pkg from "pg";
-const { Pool } = pkg;
 import dotenv from "dotenv";
+
 dotenv.config();
+
+const { Pool } = pkg;
 
 const pool = new Pool({
   host: process.env.DB_HOST,
@@ -11,16 +13,19 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD,
   port: process.env.DB_PORT || 5432,
   ssl: {
-    require: true,                // Render exige SSL
-    rejectUnauthorized: false     // Ignora certificado self-signed
+    require: true,
+    rejectUnauthorized: false, // 🔑 obrigatório no Render
   },
-  connectionTimeoutMillis: 0,     // sem timeout de conexão
-  idleTimeoutMillis: 0,           // mantém a conexão viva
-  keepAlive: true,                // mantém socket ativo
-  max: 2                          // limite pequeno p/ plano free
+  connectionTimeoutMillis: 10000, // evita travar em timeout
+  idleTimeoutMillis: 30000,       // fecha conexões ociosas
 });
 
-pool.on("connect", () => console.log("🟢 Conectado ao PostgreSQL via SSL"));
-pool.on("error", (err) => console.error("⚠️ Erro no pool de conexões:", err));
+pool.on("connect", () => {
+  console.log("🟢 Conectado ao PostgreSQL com SSL");
+});
+
+pool.on("error", (err) => {
+  console.error("❌ Erro inesperado no pool de conexões:", err);
+});
 
 export default pool;
