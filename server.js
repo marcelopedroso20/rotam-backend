@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import pool from "./db.js";
 
+import dbTestRoutes from "./routes/dbtest.js";
 import setupDbRoutes from "./routes/setup-db.js";
 import authRoutes from "./routes/auth.js";
 import efetivoRoutes from "./routes/efetivo.js";
@@ -57,6 +58,7 @@ app.use("/api/efetivo", efetivoRoutes);
 app.use("/api/viaturas", viaturasRoutes);
 app.use("/api/occurrences", occurrencesRoutes);
 app.use("/setup-db", setupDbRoutes);
+app.use("/db-test", dbTestRoutes);
 
 // 🛠️ Criação do admin
 app.get("/setup-admin", async (req, res) => {
