@@ -9,7 +9,7 @@ import bcrypt from "bcryptjs";
 import pool from "./db.js";
 
 // Rotas
-import dbTestRoutes from "./routes/dbtest.js";
+import dbTestRoutes from "./dbtest.js";
 import setupDbRoutes from "./routes/setup-db.js";
 import authRoutes from "./routes/auth.js";
 import efetivoRoutes from "./routes/efetivo.js";
