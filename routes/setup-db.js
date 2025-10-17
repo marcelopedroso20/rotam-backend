@@ -6,15 +6,17 @@ const router = express.Router();
 
 router.get("/", async (req, res) => {
   let client;
-
   try {
+    // Abre a conexão com o banco
     client = await pool.connect();
 
-    // Criação das tabelas se não existirem
+    console.log("🟢 Conectado ao banco com sucesso (setup-db)");
+
+    // Cria tabelas se não existirem
     await client.query(`
       CREATE TABLE IF NOT EXISTS efetivo (
         id SERIAL PRIMARY KEY,
-        nome VARCHAR(100),
+        nome VARCHAR(100) NOT NULL,
         patente VARCHAR(50),
         created_at TIMESTAMP DEFAULT NOW()
       );
@@ -37,12 +39,16 @@ router.get("/", async (req, res) => {
       );
     `);
 
+    console.log("✅ Tabelas verificadas/criadas com sucesso!");
     res.json({ success: true, message: "Banco de dados sincronizado com sucesso!" });
   } catch (error) {
-    console.error("Erro ao configurar o banco:", error);
+    console.error("❌ Erro ao configurar o banco:", error);
     res.status(500).json({ success: false, error: error.message });
   } finally {
-    if (client) client.release(); // ✅ Libera a conexão corretamente
+    if (client) {
+      client.release(); // <- liberação correta da conexão
+      console.log("🔵 Conexão liberada.");
+    }
   }
 });
 
