@@ -1,5 +1,5 @@
 // ===============================
-// 🚓 ROTAM Backend v2 - Servidor Principal (versão final Render)
+// 🚓 ROTAM Backend v2 - Servidor Principal (versão Render atualizada)
 // ===============================
 
 import express from "express";
@@ -7,6 +7,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import pool from "./db.js";
+import path from "path";
+import { fileURLToPath } from "url";
 
 // Rotas
 import dbTestRoutes from "./routes/dbtest.js";
@@ -16,22 +18,34 @@ import efetivoRoutes from "./routes/efetivo.js";
 import viaturasRoutes from "./routes/viaturas.js";
 import occurrencesRoutes from "./routes/occurrences.js";
 
-import path from "path";
-import { fileURLToPath } from "url";
-
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ===============================
-// 🌍 Middlewares globais
+// 🌍 Configuração de CORS (Frontend GitHub Pages + Local Dev)
 // ===============================
+const allowedOrigins = [
+  "https://marcelopedroso20.github.io",
+  "http://localhost:5500",
+  "http://127.0.0.1:5500"
+];
+
 app.use(
   cors({
-    origin: "*", // pode limitar a origem depois (ex: ["https://rotam.app"])
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    origin: (origin, callback) => {
+      // Permitir requisições locais ou do GitHub Pages
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn("🚫 CORS bloqueado para origem:", origin);
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   })
 );
 
@@ -50,8 +64,8 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.get("/", (_req, res) => {
   res.status(200).json({
     status: "ok",
-    message: "🚀 API ROTAM Backend v2 online!",
-    versao: "2.0.0",
+    message: "🚀 API ROTAM Backend v2 online no Render!",
+    versao: "2.1.0",
     docs: {
       setup_admin: "/setup-admin",
       setup_db: "/setup-db",
