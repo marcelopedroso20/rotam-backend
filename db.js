@@ -1,30 +1,26 @@
-// db.js
+// db.js - conexão PostgreSQL
 import pkg from "pg";
 import dotenv from "dotenv";
 dotenv.config();
 
 const { Pool } = pkg;
 
-// 🔑 Conexão direta via External Database URL
-const connectionString = process.env.DATABASE_URL || 
-  "postgresql://rotam_user:SENHA@dpg-xxxxx.oregon-postgres.render.com/rotam_database";
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  console.error("❌ DATABASE_URL não definida no ambiente.");
+}
 
 const pool = new Pool({
   connectionString,
-  ssl: {
-    require: true,
-    rejectUnauthorized: false,
-  },
-  connectionTimeoutMillis: 10000,
+  ssl: connectionString && connectionString.includes("render.com")
+    ? { rejectUnauthorized: false }
+    : (process.env.PGSSL === "true" ? { rejectUnauthorized: false } : false),
+  max: 10,
   idleTimeoutMillis: 30000,
 });
 
-pool.on("connect", () => {
-  console.log("🟢 Conectado ao PostgreSQL (via External URL + SSL).");
-});
-
-pool.on("error", (err) => {
-  console.error("❌ Erro inesperado no pool:", err);
-});
+pool.on("connect", () => console.log("🟢 Pool conectado ao PostgreSQL."));
+pool.on("error", (err) => console.error("❌ Erro no pool PostgreSQL:", err));
 
 export default pool;

@@ -1,37 +1,14 @@
-# =====================================================
-# 🚓 ROTAM Backend - Configuração Render (render.yaml)
-# =====================================================
-# Este arquivo define como o Render deve criar e rodar
-# o serviço Node.js (Express) do sistema ROTAM.
-# =====================================================
-
 services:
   - type: web
     name: rotam-backend
     env: node
-    region: oregon
     plan: free
-    buildCommand: npm install
-    startCommand: npm start
+    region: oregon
+    buildCommand: ""
+    startCommand: "node server.js"
     autoDeploy: true
-
     envVars:
-      - key: NODE_ENV
-        value: production
-      - key: DB_HOST
-        sync: false
-      - key: DB_NAME
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: DB_PORT
-        value: "5432"
-      - key: JWT_SECRET
-        sync: false
       - key: PORT
-        value: "10000"
-
-    runtime:
-      nodeVersion: 22.x
+        value: 3000
+      - key: NODE_VERSION
+        value: 20

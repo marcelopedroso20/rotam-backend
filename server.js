@@ -1,5 +1,5 @@
 // ===============================
-// 🚓 ROTAM Backend v2 - Servidor Principal (versão Render atualizada)
+// 🚓 ROTAM Backend v2 - Servidor Principal (Render)
 // ===============================
 
 import express from "express";
@@ -24,7 +24,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ===============================
-// 🌍 Configuração de CORS (Frontend GitHub Pages + Local Dev)
+// 🌍 CORS
 // ===============================
 const allowedOrigins = [
   "https://marcelopedroso20.github.io",
@@ -35,7 +35,6 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Permitir requisições locais ou do GitHub Pages
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -52,7 +51,7 @@ app.use(
 app.use(express.json({ limit: "10mb" }));
 
 // ===============================
-// 📂 Arquivos estáticos (ex: mapas Leaflet)
+// 📂 Arquivos estáticos
 // ===============================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,7 +75,7 @@ app.get("/", (_req, res) => {
 });
 
 // ===============================
-// 🚦 Rotas principais
+// 🚦 Rotas
 // ===============================
 app.use("/api/auth", authRoutes);
 app.use("/api/efetivo", efetivoRoutes);
@@ -113,85 +112,13 @@ app.get("/setup-admin", async (_req, res) => {
     );
 
     if (result.rowCount === 0) {
-      return res.json({
-        success: true,
-        message: "ℹ️ Usuário 'adm' já existe.",
-      });
+      return res.json({ success: true, message: "ℹ️ Usuário 'adm' já existe." });
     }
 
-    res.json({
-      success: true,
-      message: "✅ Usuário admin criado (adm/adm).",
-    });
+    res.json({ success: true, message: "✅ Usuário admin criado (adm/adm)." });
   } catch (err) {
     console.error("Erro no setup-admin:", err.message);
-    res
-      .status(500)
-      .json({ success: false, error: "Erro ao criar admin: " + err.message });
-  }
-});
-
-// ===============================
-// 🧰 Setup das tabelas principais
-// ===============================
-app.get("/setup-db", async (_req, res) => {
-  try {
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS efetivo (
-        id SERIAL PRIMARY KEY,
-        nome TEXT NOT NULL,
-        patente TEXT NOT NULL,
-        funcao TEXT,
-        setor TEXT,
-        turno TEXT,
-        viatura TEXT,
-        placa TEXT,
-        status TEXT DEFAULT 'Disponível',
-        latitude NUMERIC(9,6),
-        longitude NUMERIC(9,6),
-        foto TEXT,
-        atualizado_em TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS viaturas (
-        id SERIAL PRIMARY KEY,
-        prefixo TEXT UNIQUE NOT NULL,
-        placa TEXT,
-        modelo TEXT,
-        status TEXT DEFAULT 'Disponível',
-        localizacao TEXT,
-        latitude NUMERIC(9,6),
-        longitude NUMERIC(9,6),
-        atualizado_em TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    await pool.query(`
-      CREATE TABLE IF NOT EXISTS occurrences (
-        id SERIAL PRIMARY KEY,
-        titulo TEXT NOT NULL,
-        descricao TEXT,
-        data TIMESTAMPTZ DEFAULT NOW(),
-        local TEXT,
-        latitude NUMERIC(9,6),
-        longitude NUMERIC(9,6),
-        equipe_id INTEGER,
-        equipe_nome TEXT,
-        status TEXT DEFAULT 'Concluída',
-        observacoes TEXT,
-        registrado_por TEXT
-      );
-    `);
-
-    res.json({
-      success: true,
-      message: "✅ Tabelas criadas/verificadas com sucesso.",
-    });
-  } catch (err) {
-    console.error("Erro no setup-db:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: "Erro ao criar admin: " + err.message });
   }
 });
 
@@ -208,7 +135,7 @@ app.get("/gen-hash/:senha", async (req, res) => {
 });
 
 // ===============================
-// 🌍 Endpoints públicos para o mapa (Leaflet)
+// 🌍 Endpoints públicos de mapa
 // ===============================
 app.get("/api/map/efetivo", async (_req, res) => {
   try {
@@ -251,9 +178,7 @@ app.get("/api/map/occurrences", async (_req, res) => {
   }
 });
 
-// ===============================
-// 🚫 Rota 404 (sempre no final)
-// ===============================
+// 404
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -262,16 +187,6 @@ app.use((req, res) => {
   });
 });
 
-// ===============================
-// ⚙️ Inicialização do servidor
-// ===============================
 app.listen(PORT, () => {
   console.log(`✅ Servidor rodando na porta ${PORT}`);
-  console.log("🔗 Rotas principais:");
-  console.log("   → GET  /");
-  console.log("   → GET  /setup-admin");
-  console.log("   → GET  /setup-db");
-  console.log("   → GET  /db-test");
-  console.log("   → GET  /gen-hash/:senha");
-  console.log("   → POST /api/auth/login");
 });
