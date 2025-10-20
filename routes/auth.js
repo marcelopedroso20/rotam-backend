@@ -7,53 +7,28 @@ import pool from "../db.js";
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_super_forte";
 
-// Log de depuração
-console.log("✅ Rota /api/auth carregada!");
+console.log("✅ /api/auth carregado");
 
 router.post("/login", async (req, res) => {
   try {
     const { usuario, senha } = req.body;
-
     if (!usuario || !senha) {
-      return res.status(400).json({
-        success: false,
-        error: "Usuário e senha obrigatórios",
-      });
+      return res.status(400).json({ success: false, error: "Usuário e senha obrigatórios" });
     }
 
-    const { rows } = await pool.query(
-      "SELECT * FROM usuarios WHERE usuario = $1",
-      [usuario]
-    );
-
+    const { rows } = await pool.query("SELECT * FROM usuarios WHERE usuario = $1", [usuario]);
     if (rows.length === 0) {
-      return res.status(401).json({
-        success: false,
-        error: "Usuário ou senha inválidos",
-      });
+      return res.status(401).json({ success: false, error: "Usuário ou senha inválidos" });
     }
 
     const user = rows[0];
     const senhaOk = await bcrypt.compare(senha, user.senha_hash);
-
     if (!senhaOk) {
-      return res.status(401).json({
-        success: false,
-        error: "Usuário ou senha inválidos",
-      });
+      return res.status(401).json({ success: false, error: "Usuário ou senha inválidos" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, usuario: user.usuario, role: user.role },
-      JWT_SECRET,
-      { expiresIn: "8h" }
-    );
-
-    res.json({
-      success: true,
-      message: "Login realizado com sucesso!",
-      token,
-    });
+    const token = jwt.sign({ id: user.id, usuario: user.usuario, role: user.role }, JWT_SECRET, { expiresIn: "8h" });
+    res.json({ success: true, message: "Login realizado com sucesso!", token, role: user.role, usuario: user.usuario });
   } catch (error) {
     console.error("❌ Erro no login:", error.message);
     res.status(500).json({ success: false, error: "Erro interno no servidor" });

@@ -3,7 +3,7 @@ import pool from "../db.js";
 
 const router = express.Router();
 
-router.get("/", async (req, res) => {
+router.get("/", async (_req, res) => {
   let client;
   try {
     client = await pool.connect();
@@ -12,30 +12,54 @@ router.get("/", async (req, res) => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS efetivo (
         id SERIAL PRIMARY KEY,
-        nome VARCHAR(100),
-        patente VARCHAR(50),
-        created_at TIMESTAMP DEFAULT NOW()
+        nome TEXT NOT NULL,
+        patente TEXT NOT NULL,
+        funcao TEXT,
+        setor TEXT,
+        turno TEXT,
+        viatura TEXT,
+        placa TEXT,
+        status TEXT DEFAULT 'Disponível',
+        latitude NUMERIC(9,6),
+        longitude NUMERIC(9,6),
+        foto TEXT,
+        atualizado_em TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS viaturas (
         id SERIAL PRIMARY KEY,
-        modelo VARCHAR(100),
-        placa VARCHAR(20),
-        created_at TIMESTAMP DEFAULT NOW()
+        prefixo TEXT UNIQUE NOT NULL,
+        placa TEXT,
+        modelo TEXT,
+        status TEXT DEFAULT 'Disponível',
+        localizacao TEXT,
+        latitude NUMERIC(9,6),
+        longitude NUMERIC(9,6),
+        atualizado_em TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
     await client.query(`
-      CREATE TABLE IF NOT EXISTS ocorrencias (
+      CREATE TABLE IF NOT EXISTS occurrences (
         id SERIAL PRIMARY KEY,
+        titulo TEXT NOT NULL,
         descricao TEXT,
-        data TIMESTAMP DEFAULT NOW()
+        data TIMESTAMPTZ DEFAULT NOW(),
+        local TEXT,
+        latitude NUMERIC(9,6),
+        longitude NUMERIC(9,6),
+        equipe_id INTEGER,
+        equipe_nome TEXT,
+        status TEXT DEFAULT 'Concluída',
+        observacoes TEXT,
+        registrado_por TEXT
       );
     `);
 
     console.log("✅ Tabelas criadas/verificadas com sucesso!");
+    res.setHeader("Access-Control-Allow-Origin", "*");
     res.json({ success: true, message: "Banco de dados sincronizado com sucesso!" });
   } catch (err) {
     console.error("❌ Erro ao configurar o banco:", err);
