@@ -1,5 +1,5 @@
 // ===============================
-// 🚓 ROTAM Backend v2.2.0 - Servidor Principal
+// 🚓 ROTAM Backend v2.3.0 - Servidor Principal
 // ===============================
 import express from "express";
 import cors from "cors";
@@ -15,6 +15,9 @@ import efetivoRoutes from "./routes/efetivo.js";
 import viaturasRoutes from "./routes/viaturas.js";
 import occurrencesRoutes from "./routes/occurrences.js";
 import dbTestRoutes from "./routes/dbtest.js";
+
+// 🗺️ Novo módulo Mapa da Força
+import mapaForcaRoutes from "./routes/mapaForca.js";
 
 dotenv.config();
 
@@ -68,13 +71,14 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.get("/", (_req, res) => {
   res.status(200).json({
     status: "ok",
-    message: "🚀 API ROTAM Backend v2.2.0 online!",
-    versao: "2.2.0",
+    message: "🚀 API ROTAM Backend v2.3.0 online!",
+    versao: "2.3.0",
     docs: {
       setup_admin: "/setup-admin",
       setup_db: "/setup-db",
       gen_hash: "/gen-hash/:senha",
       db_test: "/db-test",
+      mapa_forca: "/api/mapa",
     },
   });
 });
@@ -86,10 +90,11 @@ app.use("/api/auth", authRoutes);
 app.use("/api/efetivo", efetivoRoutes);
 app.use("/api/viaturas", viaturasRoutes);
 app.use("/api/occurrences", occurrencesRoutes);
+app.use("/api/mapa", mapaForcaRoutes); // ✅ NOVO módulo Mapa da Força
 app.use("/db-test", dbTestRoutes);
 
 // ===============================
-/* 🛠️ Setup das tabelas (padronizado) */
+// 🛠️ Setup das tabelas
 // ===============================
 app.get("/setup-db", async (_req, res) => {
   try {
@@ -152,7 +157,37 @@ app.get("/setup-db", async (_req, res) => {
       );
     `);
 
-    res.json({ success: true, message: "✅ Tabelas criadas/verificadas com sucesso." });
+    // ✅ Tabelas do Mapa da Força
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS postos (
+        id SERIAL PRIMARY KEY,
+        setor VARCHAR(50) NOT NULL,
+        nome_posto VARCHAR(100) NOT NULL,
+        ordem INTEGER NOT NULL DEFAULT 0,
+        ativo BOOLEAN NOT NULL DEFAULT TRUE
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escala_dia (
+        id SERIAL PRIMARY KEY,
+        data DATE NOT NULL,
+        turno VARCHAR(50) NOT NULL,
+        UNIQUE (data, turno)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escala_item (
+        id SERIAL PRIMARY KEY,
+        escala_id INTEGER NOT NULL REFERENCES escala_dia(id) ON DELETE CASCADE,
+        posto_id INTEGER NOT NULL REFERENCES postos(id) ON DELETE CASCADE,
+        efetivo_id INTEGER REFERENCES efetivo(id) ON DELETE SET NULL,
+        observacao TEXT
+      );
+    `);
+
+    res.json({ success: true, message: "✅ Todas as tabelas foram criadas/verificadas com sucesso." });
   } catch (err) {
     console.error("Erro no setup-db:", err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -188,7 +223,7 @@ app.get("/setup-admin", async (_req, res) => {
 });
 
 // ===============================
-// 🔐 Geração de hash (teste)
+// 🔐 Geração de hash
 // ===============================
 app.get("/gen-hash/:senha", async (req, res) => {
   try {
@@ -200,7 +235,7 @@ app.get("/gen-hash/:senha", async (req, res) => {
 });
 
 // ===============================
-// 🌍 Endpoints públicos para o mapa (Leaflet)
+// 🌍 Endpoints públicos Leaflet
 // ===============================
 app.get("/api/map/efetivo", async (_req, res) => {
   try {
@@ -262,4 +297,5 @@ app.listen(PORT, () => {
   console.log("   → GET  /db-test");
   console.log("   → GET  /gen-hash/:senha");
   console.log("   → POST /api/auth/login");
+  console.log("   → GET  /api/mapa (Mapa da Força)");
 });
