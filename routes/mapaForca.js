@@ -1,5 +1,5 @@
 // ===============================
-// 🗺️ ROTAM - Rotas do Mapa da Força (v1.0)
+// 🗺️ ROTAM - Rotas do Mapa da Força (v2.0)
 // ===============================
 import express from "express";
 import pool from "../db.js";
@@ -31,29 +31,40 @@ router.get("/", autenticarToken, async (req, res) => {
     const { data, turno } = req.query;
 
     // Busca todos os postos ativos
-    const { rows: postos } = await pool.query(
-      `SELECT id AS posto_id, setor, nome_posto, ordem FROM postos WHERE ativo = true ORDER BY setor, ordem`
-    );
+    const { rows: postos } = await pool.query(`
+      SELECT id AS posto_id, setor, nome_posto, ordem
+      FROM postos
+      WHERE ativo = true
+      ORDER BY setor, ordem
+    `);
 
+    // Se não foi informada data/turno → retorna estrutura básica
     if (!data || !turno) {
-      // Se não foi informada data/turno, apenas retorna estrutura base
-      return res.json(postos.map(p => ({ ...p, efetivo_id: null })));
+      return res.json(postos.map(p => ({
+        ...p,
+        efetivo_id: null,
+        militar_nome: null
+      })));
     }
 
-    // Busca se existe escala registrada para a data/turno
+    // Verifica se existe escala criada para o dia e turno
     const escalaDia = await pool.query(
       `SELECT id FROM escala_dia WHERE data = $1 AND turno = $2`,
       [data, turno]
     );
 
     if (escalaDia.rowCount === 0) {
-      // Nenhuma escala criada para essa data/turno
-      return res.json(postos.map(p => ({ ...p, efetivo_id: null })));
+      // Nenhuma escala ainda para esse dia/turno
+      return res.json(postos.map(p => ({
+        ...p,
+        efetivo_id: null,
+        militar_nome: null
+      })));
     }
 
     const escalaId = escalaDia.rows[0].id;
 
-    // Junta escala_item com os postos
+    // Junta escala_item com efetivo e retorna nomes
     const { rows: escala } = await pool.query(
       `
       SELECT 
@@ -61,10 +72,13 @@ router.get("/", autenticarToken, async (req, res) => {
         p.setor,
         p.nome_posto,
         p.ordem,
-        e.efetivo_id
+        e.efetivo_id,
+        ef.nome AS militar_nome
       FROM postos p
-      LEFT JOIN escala_item e 
+      LEFT JOIN escala_item e
         ON p.id = e.posto_id AND e.escala_id = $1
+      LEFT JOIN efetivo ef
+        ON e.efetivo_id = ef.id
       WHERE p.ativo = true
       ORDER BY p.setor, p.ordem
       `,
@@ -73,7 +87,7 @@ router.get("/", autenticarToken, async (req, res) => {
 
     res.json(escala);
   } catch (err) {
-    console.error("Erro ao buscar mapa:", err);
+    console.error("❌ Erro ao buscar mapa:", err);
     res.status(500).json({ error: "Erro ao carregar o mapa da força." });
   }
 });
@@ -100,14 +114,14 @@ router.post("/salvar", autenticarToken, async (req, res) => {
       INSERT INTO escala_dia (data, turno)
       VALUES ($1, $2)
       ON CONFLICT (data, turno)
-      DO UPDATE SET data = EXCLUDED.data
+      DO UPDATE SET turno = EXCLUDED.turno
       RETURNING id;
       `,
       [data, turno]
     );
     const escalaId = escalaRes.rows[0].id;
 
-    // 2️⃣ Remove alocações anteriores (limpa os postos daquele dia/turno)
+    // 2️⃣ Remove alocações antigas daquele dia/turno
     await client.query("DELETE FROM escala_item WHERE escala_id = $1", [escalaId]);
 
     // 3️⃣ Insere novas alocações
@@ -122,10 +136,10 @@ router.post("/salvar", autenticarToken, async (req, res) => {
     }
 
     await client.query("COMMIT");
-    res.json({ success: true, message: "Escala salva com sucesso." });
+    res.json({ success: true, message: "✅ Escala salva com sucesso." });
   } catch (err) {
     await client.query("ROLLBACK");
-    console.error("Erro ao salvar escala:", err);
+    console.error("❌ Erro ao salvar escala:", err);
     res.status(500).json({ error: "Erro ao salvar escala no banco de dados." });
   } finally {
     client.release();
