@@ -1,7 +1,7 @@
 // routes/efetivo.js
 // ===============================
-// 🪖 ROTAM - CRUD de Efetivo (v2.4.0)
-// ✅ ATUALIZADO: Suporte ao campo nome_completo
+// 🪖 ROTAM - CRUD de Efetivo (v3.0.0 - COMPLETO)
+// ✅ Todos os campos da planilha Excel
 // ===============================
 import express from "express";
 import pool from "../db.js";
@@ -23,16 +23,18 @@ router.get("/", authenticateToken, async (_req, res) => {
 
 // ===============================
 // ➕ POST - Cadastrar novo efetivo
-// ✅ ATUALIZADO: Inclui nome_completo
+// ✅ COMPLETO: Todos os campos
 // ===============================
 router.post("/", authenticateToken, async (req, res) => {
   try {
     const { 
-      nome, 
-      nome_completo,  // ✅ NOVO CAMPO
-      patente, 
-      funcao, 
-      setor, 
+      nome,              // Nome operacional curto (NOME IDENT.)
+      nome_completo,     // Nome completo simples (NOME COMPLETO)
+      nome_oficial,      // Nome completo com identificação (NOME COMPLETO COM IDENTIFICAÇÃO)
+      patente,           // Posto/graduação (POSTO/GRAD)
+      funcao,            // Função/situação (SITUAÇÃO)
+      setor,             // Setor
+      rgpm,              // Registro geral (RGPM)
       turno, 
       viatura, 
       placa, 
@@ -51,9 +53,11 @@ router.post("/", authenticateToken, async (req, res) => {
       `INSERT INTO efetivo (
         nome, 
         nome_completo,
+        nome_oficial,
         patente, 
         funcao, 
         setor, 
+        rgpm,
         turno, 
         viatura, 
         placa, 
@@ -62,14 +66,16 @@ router.post("/", authenticateToken, async (req, res) => {
         longitude, 
         foto
       )
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) 
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) 
        RETURNING *`,
       [
         nome, 
-        nome_completo || null,  // ✅ Permite NULL se não informado
+        nome_completo || null,
+        nome_oficial || null,
         patente, 
         funcao, 
-        setor, 
+        setor,
+        rgpm || null,
         turno, 
         viatura, 
         placa, 
@@ -89,17 +95,19 @@ router.post("/", authenticateToken, async (req, res) => {
 
 // ===============================
 // ✏️ PUT - Atualizar efetivo
-// ✅ ATUALIZADO: Inclui nome_completo
+// ✅ COMPLETO: Todos os campos
 // ===============================
 router.put("/:id", authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const { 
       nome, 
-      nome_completo,  // ✅ NOVO CAMPO
+      nome_completo,
+      nome_oficial,
       patente, 
       funcao, 
-      setor, 
+      setor,
+      rgpm,
       turno, 
       viatura, 
       placa, 
@@ -113,25 +121,29 @@ router.put("/:id", authenticateToken, async (req, res) => {
       `UPDATE efetivo SET
         nome=$1, 
         nome_completo=$2,
-        patente=$3, 
-        funcao=$4, 
-        setor=$5, 
-        turno=$6, 
-        viatura=$7, 
-        placa=$8, 
-        status=$9,
-        latitude=$10, 
-        longitude=$11, 
-        foto=$12, 
+        nome_oficial=$3,
+        patente=$4, 
+        funcao=$5, 
+        setor=$6,
+        rgpm=$7,
+        turno=$8, 
+        viatura=$9, 
+        placa=$10, 
+        status=$11,
+        latitude=$12, 
+        longitude=$13, 
+        foto=$14, 
         atualizado_em=NOW()
-       WHERE id=$13 
+       WHERE id=$15 
        RETURNING *`,
       [
         nome, 
-        nome_completo || null,  // ✅ Permite NULL
+        nome_completo || null,
+        nome_oficial || null,
         patente, 
         funcao, 
-        setor, 
+        setor,
+        rgpm || null,
         turno, 
         viatura, 
         placa, 
