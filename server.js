@@ -1,29 +1,29 @@
 // ===============================
-// 🚓 ROTAM Backend v2.3.0 - Servidor Principal
+// 🚓 ROTAM Backend v2.4.0 - Servidor Principal
 // ===============================
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import path from "path";
 import { fileURLToPath } from "url";
 import pool from "./db.js";
 
-// Rotas
+// ===============================
+// 📦 Importação de Rotas
+// ===============================
 import authRoutes from "./routes/auth.js";
 import efetivoRoutes from "./routes/efetivo.js";
 import viaturasRoutes from "./routes/viaturas.js";
 import occurrencesRoutes from "./routes/occurrences.js";
 import dbTestRoutes from "./routes/dbtest.js";
+import mapaForcaRoutes from "./routes/mapaForca.js";
 import escalasRoutes from "./routes/escalas.js";
 
-// ... outras rotas ...
-
-app.use("/api/escalas", escalasRoutes);
-
-// 🗺️ Novo módulo Mapa da Força
-import mapaForcaRoutes from "./routes/mapaForca.js";
-
+// ===============================
+// ⚙️ Configuração
+// ===============================
 dotenv.config();
 
 const app = express();
@@ -76,26 +76,28 @@ app.use("/public", express.static(path.join(__dirname, "public")));
 app.get("/", (_req, res) => {
   res.status(200).json({
     status: "ok",
-    message: "🚀 API ROTAM Backend v2.3.0 online!",
-    versao: "2.3.0",
+    message: "🚀 API ROTAM Backend v2.4.0 online!",
+    versao: "2.4.0",
     docs: {
       setup_admin: "/setup-admin",
       setup_db: "/setup-db",
       gen_hash: "/gen-hash/:senha",
       db_test: "/db-test",
       mapa_forca: "/api/mapa",
+      escalas: "/api/escalas",
     },
   });
 });
 
 // ===============================
-// 🔐 Rotas principais
+// 🔐 Registro de Rotas
 // ===============================
 app.use("/api/auth", authRoutes);
 app.use("/api/efetivo", efetivoRoutes);
 app.use("/api/viaturas", viaturasRoutes);
 app.use("/api/occurrences", occurrencesRoutes);
-app.use("/api/mapa", mapaForcaRoutes); // ✅ NOVO módulo Mapa da Força
+app.use("/api/mapa", mapaForcaRoutes);
+app.use("/api/escalas", escalasRoutes);
 app.use("/db-test", dbTestRoutes);
 
 // ===============================
@@ -103,6 +105,7 @@ app.use("/db-test", dbTestRoutes);
 // ===============================
 app.get("/setup-db", async (_req, res) => {
   try {
+    // Tabela de usuários
     await pool.query(`
       CREATE TABLE IF NOT EXISTS usuarios (
         id SERIAL PRIMARY KEY,
@@ -113,13 +116,17 @@ app.get("/setup-db", async (_req, res) => {
       );
     `);
 
+    // Tabela de efetivo
     await pool.query(`
       CREATE TABLE IF NOT EXISTS efetivo (
         id SERIAL PRIMARY KEY,
         nome TEXT NOT NULL,
+        nome_completo TEXT,
+        nome_oficial TEXT,
         patente TEXT NOT NULL,
         funcao TEXT,
         setor TEXT,
+        rgpm VARCHAR(20),
         turno TEXT,
         viatura TEXT,
         placa TEXT,
@@ -131,6 +138,7 @@ app.get("/setup-db", async (_req, res) => {
       );
     `);
 
+    // Tabela de viaturas
     await pool.query(`
       CREATE TABLE IF NOT EXISTS viaturas (
         id SERIAL PRIMARY KEY,
@@ -145,6 +153,7 @@ app.get("/setup-db", async (_req, res) => {
       );
     `);
 
+    // Tabela de ocorrências
     await pool.query(`
       CREATE TABLE IF NOT EXISTS occurrences (
         id SERIAL PRIMARY KEY,
@@ -162,7 +171,7 @@ app.get("/setup-db", async (_req, res) => {
       );
     `);
 
-    // ✅ Tabelas do Mapa da Força
+    // Tabelas do Mapa da Força
     await pool.query(`
       CREATE TABLE IF NOT EXISTS postos (
         id SERIAL PRIMARY KEY,
@@ -192,6 +201,39 @@ app.get("/setup-db", async (_req, res) => {
       );
     `);
 
+    // Tabelas de Escalas Diárias
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escalas (
+        id SERIAL PRIMARY KEY,
+        data DATE NOT NULL,
+        turno VARCHAR(20) DEFAULT 'Diurno',
+        comandante_dia INTEGER REFERENCES efetivo(id),
+        fiscal_dia INTEGER REFERENCES efetivo(id),
+        adjunto_dia INTEGER REFERENCES efetivo(id),
+        chefe_ali INTEGER REFERENCES efetivo(id),
+        observacoes TEXT,
+        criado_por VARCHAR(100),
+        criado_em TIMESTAMP DEFAULT NOW(),
+        atualizado_em TIMESTAMP DEFAULT NOW(),
+        UNIQUE(data, turno)
+      );
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS escala_alocacoes (
+        id SERIAL PRIMARY KEY,
+        escala_id INTEGER REFERENCES escalas(id) ON DELETE CASCADE,
+        efetivo_id INTEGER REFERENCES efetivo(id),
+        tipo_alocacao VARCHAR(50) NOT NULL,
+        viatura VARCHAR(20),
+        posicao VARCHAR(20),
+        horario_inicio TIME,
+        horario_fim TIME,
+        observacoes TEXT,
+        criado_em TIMESTAMP DEFAULT NOW()
+      );
+    `);
+
     res.json({ success: true, message: "✅ Todas as tabelas foram criadas/verificadas com sucesso." });
   } catch (err) {
     console.error("Erro no setup-db:", err.message);
@@ -202,7 +244,6 @@ app.get("/setup-db", async (_req, res) => {
 // ===============================
 // 🛠️ Criação do admin
 // ===============================
-import jwt from "jsonwebtoken";
 app.get("/setup-admin", async (_req, res) => {
   try {
     const username = "adm";
@@ -303,4 +344,5 @@ app.listen(PORT, () => {
   console.log("   → GET  /gen-hash/:senha");
   console.log("   → POST /api/auth/login");
   console.log("   → GET  /api/mapa (Mapa da Força)");
+  console.log("   → GET  /api/escalas (Escalas)");
 });
