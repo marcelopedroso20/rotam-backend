@@ -15,6 +15,11 @@ import efetivoRoutes from "./routes/efetivo.js";
 import viaturasRoutes from "./routes/viaturas.js";
 import occurrencesRoutes from "./routes/occurrences.js";
 import dbTestRoutes from "./routes/dbtest.js";
+import escalasRoutes from "./routes/escalas.js";
+
+// ... outras rotas ...
+
+app.use("/api/escalas", escalasRoutes);
 
 // 🗺️ Novo módulo Mapa da Força
 import mapaForcaRoutes from "./routes/mapaForca.js";
